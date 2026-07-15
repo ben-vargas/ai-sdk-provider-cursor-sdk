@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main, ai-sdk-v6]
+  pull_request:
+    branches: [main, ai-sdk-v6]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22.x, 24.x]
+
+    name: AI SDK v6 / Node ${{ matrix.node-version }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Format check
+        run: npm run format
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Test coverage
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
+
+      - name: Package validation
+        run: npx publint
+
+      - name: Packed consumer smoke
+        run: npm run smoke:consumer

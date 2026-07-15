@@ -1,0 +1,29 @@
+{
+  "description": "two incremental turn usage checkpoints without terminal usage",
+  "events": [
+    {
+      "update": {
+        "type": "turn-ended",
+        "usage": {
+          "inputTokens": 2,
+          "outputTokens": 3,
+          "cacheReadTokens": 4,
+          "cacheWriteTokens": 5,
+          "reasoningTokens": 1
+        }
+      }
+    },
+    {
+      "update": {
+        "type": "turn-ended",
+        "usage": {
+          "inputTokens": 7,
+          "outputTokens": 11,
+          "cacheReadTokens": 13,
+          "cacheWriteTokens": 17
+        }
+      }
+    }
+  ],
+  "result": { "id": "run-multi-usage", "status": "finished" }
+}

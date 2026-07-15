@@ -1,0 +1,18 @@
+{
+  "description": "documented raw-only update variants",
+  "events": [
+    { "update": { "type": "token-delta", "tokens": 2 } },
+    { "update": { "type": "step-started", "stepId": 1 } },
+    { "update": { "type": "step-completed", "stepId": 1, "stepDurationMs": 8 } },
+    { "update": { "type": "summary-started" } },
+    { "update": { "type": "summary", "summary": "short" } },
+    { "update": { "type": "summary-completed" } },
+    {
+      "update": {
+        "type": "user-message-appended",
+        "userMessage": { "type": "user_message", "session_id": "session-1", "text": "hello" }
+      }
+    }
+  ],
+  "result": { "id": "run-summary", "status": "finished" }
+}

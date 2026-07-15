@@ -1,0 +1,8 @@
+{
+  "description": "unknown harmless update is raw plus one warning",
+  "events": [
+    { "update": { "type": "future-progress", "value": 1 } },
+    { "update": { "type": "future-progress", "value": 2 } }
+  ],
+  "result": { "id": "run-unknown-safe", "status": "finished" }
+}

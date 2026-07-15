@@ -1,0 +1,44 @@
+{
+  "description": "preliminary tool snapshots and shell output",
+  "events": [
+    {
+      "update": {
+        "type": "tool-call-started",
+        "callId": "call-prelim",
+        "modelCallId": "model-call-prelim",
+        "toolCall": { "type": "shell", "args": { "command": "printf hi" } }
+      }
+    },
+    {
+      "update": {
+        "type": "partial-tool-call",
+        "callId": "call-prelim",
+        "modelCallId": "model-call-prelim",
+        "toolCall": { "type": "shell", "args": { "command": "printf hi" } }
+      }
+    },
+    { "update": { "type": "shell-output-delta", "event": { "stdout": "hi" } } },
+    {
+      "update": {
+        "type": "tool-call-completed",
+        "callId": "call-prelim",
+        "modelCallId": "model-call-prelim",
+        "toolCall": {
+          "type": "shell",
+          "args": { "command": "printf hi" },
+          "result": {
+            "status": "success",
+            "value": {
+              "exitCode": 0,
+              "signal": "",
+              "stdout": "hi",
+              "stderr": "",
+              "executionTime": 2
+            }
+          }
+        }
+      }
+    }
+  ],
+  "result": { "id": "run-prelim", "status": "finished" }
+}

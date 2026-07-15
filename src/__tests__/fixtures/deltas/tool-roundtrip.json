@@ -1,0 +1,37 @@
+{
+  "description": "text then one successful shell tool then text",
+  "events": [
+    { "update": { "type": "text-delta", "text": "Before" } },
+    {
+      "update": {
+        "type": "tool-call-started",
+        "callId": "call-shell",
+        "modelCallId": "model-call-shell",
+        "toolCall": { "type": "shell", "args": { "command": "pwd" } }
+      }
+    },
+    {
+      "update": {
+        "type": "tool-call-completed",
+        "callId": "call-shell",
+        "modelCallId": "model-call-shell",
+        "toolCall": {
+          "type": "shell",
+          "args": { "command": "pwd" },
+          "result": {
+            "status": "success",
+            "value": {
+              "exitCode": 0,
+              "signal": "",
+              "stdout": "/repo\n",
+              "stderr": "",
+              "executionTime": 3
+            }
+          }
+        }
+      }
+    },
+    { "update": { "type": "text-delta", "text": "After" } }
+  ],
+  "result": { "id": "run-tool", "status": "finished", "result": "BeforeAfter" }
+}

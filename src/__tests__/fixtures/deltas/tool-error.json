@@ -1,0 +1,26 @@
+{
+  "description": "tool completion error with sensitive payload",
+  "events": [
+    {
+      "update": {
+        "type": "tool-call-started",
+        "callId": "call-error",
+        "modelCallId": "model-call-error",
+        "toolCall": { "type": "shell", "args": { "command": "CURSOR_API_KEY=secret fail" } }
+      }
+    },
+    {
+      "update": {
+        "type": "tool-call-completed",
+        "callId": "call-error",
+        "modelCallId": "model-call-error",
+        "toolCall": {
+          "type": "shell",
+          "args": { "command": "CURSOR_API_KEY=secret fail" },
+          "result": { "status": "error", "error": { "message": "failed", "apiKey": "secret" } }
+        }
+      }
+    }
+  ],
+  "result": { "id": "run-tool-error", "status": "finished", "result": "" }
+}

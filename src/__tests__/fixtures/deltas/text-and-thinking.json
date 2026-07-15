@@ -1,0 +1,12 @@
+{
+  "description": "reasoning and text blocks alternate without interleaving",
+  "events": [
+    { "update": { "type": "thinking-delta", "text": "Think" } },
+    { "update": { "type": "thinking-delta", "text": "ing" } },
+    { "update": { "type": "thinking-completed", "thinkingDurationMs": 42 } },
+    { "update": { "type": "text-delta", "text": "Answer" } },
+    { "update": { "type": "thinking-delta", "text": "Check" } },
+    { "update": { "type": "text-delta", "text": " done" } }
+  ],
+  "result": { "id": "run-thinking", "status": "finished", "result": "Answer done" }
+}

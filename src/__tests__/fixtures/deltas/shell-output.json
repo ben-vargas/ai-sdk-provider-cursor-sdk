@@ -1,0 +1,36 @@
+{
+  "description": "shell output is raw-only without the experimental flag",
+  "events": [
+    {
+      "update": {
+        "type": "tool-call-started",
+        "callId": "call-output",
+        "modelCallId": "model-call-output",
+        "toolCall": { "type": "shell", "args": { "command": "echo hi" } }
+      }
+    },
+    { "update": { "type": "shell-output-delta", "event": { "stdout": "hi\n" } } },
+    {
+      "update": {
+        "type": "tool-call-completed",
+        "callId": "call-output",
+        "modelCallId": "model-call-output",
+        "toolCall": {
+          "type": "shell",
+          "args": { "command": "echo hi" },
+          "result": {
+            "status": "success",
+            "value": {
+              "exitCode": 0,
+              "signal": "",
+              "stdout": "hi\n",
+              "stderr": "",
+              "executionTime": 2
+            }
+          }
+        }
+      }
+    }
+  ],
+  "result": { "id": "run-output", "status": "finished" }
+}

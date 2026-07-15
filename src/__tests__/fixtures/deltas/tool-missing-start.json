@@ -1,0 +1,27 @@
+{
+  "description": "completed tool event without a started event",
+  "events": [
+    {
+      "update": {
+        "type": "tool-call-completed",
+        "callId": "call-missing",
+        "modelCallId": "model-call-missing",
+        "toolCall": {
+          "type": "shell",
+          "args": { "command": "true" },
+          "result": {
+            "status": "success",
+            "value": {
+              "exitCode": 0,
+              "signal": "",
+              "stdout": "",
+              "stderr": "",
+              "executionTime": 1
+            }
+          }
+        }
+      }
+    }
+  ],
+  "result": { "id": "run-missing", "status": "finished" }
+}

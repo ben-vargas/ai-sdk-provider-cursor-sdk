@@ -1,0 +1,5 @@
+{
+  "description": "unknown semantic update fails closed",
+  "events": [{ "update": { "type": "future-tool-result", "value": 1 } }],
+  "result": { "id": "run-unknown-semantic", "status": "finished" }
+}

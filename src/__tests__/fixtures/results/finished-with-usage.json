@@ -1,0 +1,25 @@
+{
+  "id": "run-finished",
+  "requestId": "request-finished",
+  "status": "finished",
+  "result": "done",
+  "model": { "id": "composer-2.5", "params": [{ "id": "fast", "value": "true" }] },
+  "durationMs": 12,
+  "usage": {
+    "inputTokens": 3,
+    "outputTokens": 5,
+    "cacheReadTokens": 7,
+    "cacheWriteTokens": 11,
+    "reasoningTokens": 2,
+    "totalTokens": 26
+  },
+  "git": {
+    "branches": [
+      {
+        "repoUrl": "https://example.test/repo",
+        "branch": "cursor/run",
+        "prUrl": "https://example.test/pr/1"
+      }
+    ]
+  }
+}

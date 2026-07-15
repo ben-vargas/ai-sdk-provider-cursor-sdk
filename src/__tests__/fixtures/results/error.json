@@ -1,0 +1,6 @@
+{
+  "id": "run-result-error",
+  "requestId": "request-result-error",
+  "status": "error",
+  "error": { "message": "rate limited", "code": "rate_limit" }
+}

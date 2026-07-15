@@ -1,0 +1,19 @@
+{
+  "description": "terminal run error aborts dangling tools then emits error and finish",
+  "events": [
+    {
+      "update": {
+        "type": "tool-call-started",
+        "callId": "call-run-error",
+        "modelCallId": "model-call-run-error",
+        "toolCall": { "type": "shell", "args": { "command": "fail" } }
+      }
+    }
+  ],
+  "result": {
+    "id": "run-error",
+    "requestId": "request-error",
+    "status": "error",
+    "error": { "message": "backend overloaded", "code": "overloaded" }
+  }
+}

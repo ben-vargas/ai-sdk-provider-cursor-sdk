@@ -1,0 +1,110 @@
+name: Cursor SDK Canary
+
+# Weekly drift check against the unpinned @cursor/sdk@latest. The regular CI
+# workflow remains the health signal for the package's pinned 1.0.23 dependency.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  upstream-sdk-drift:
+    name: Upstream SDK drift (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22.x, 24.x]
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Do not persist an issues-capable token where an unpinned package
+          # or transitive dependency could read it.
+          persist-credentials: false
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install pinned dependencies
+        run: npm ci
+
+      - name: Install @cursor/sdk@latest without saving
+        run: npm install --no-save --ignore-scripts @cursor/sdk@latest
+
+      - name: Print resolved SDK version
+        run: |
+          echo "Pinned version in package.json:"
+          node -e "console.log(require('./package.json').dependencies['@cursor/sdk'])"
+          echo "Resolved @latest version under test:"
+          node -e "console.log(require('./node_modules/@cursor/sdk/package.json').version)"
+
+      - name: Type check against @latest
+        id: typecheck
+        run: npm run typecheck
+
+      - name: Unit tests against @latest
+        id: tests
+        run: npm test
+
+      - name: File or update SDK drift issue
+        if: failure() && (steps.typecheck.outcome == 'failure' || steps.tests.outcome == 'failure')
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            let sdkVersion = 'unknown';
+            try {
+              sdkVersion = JSON.parse(
+                fs.readFileSync('node_modules/@cursor/sdk/package.json', 'utf8')
+              ).version;
+            } catch {}
+
+            const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const pinned = packageJson.dependencies['@cursor/sdk'];
+            const title = 'SDK canary failing against @cursor/sdk@latest';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const failedStep =
+              '${{ steps.typecheck.outcome }}' === 'failure' ? 'typecheck' : 'unit tests';
+            const body = [
+              `The weekly canary failed against \`@cursor/sdk@${sdkVersion}\`.`,
+              '',
+              `- Run: ${runUrl}`,
+              `- Failed step: ${failedStep}`,
+              `- Node: ${{ matrix.node-version }}`,
+              `- Pinned version: \`${pinned}\``,
+              '',
+              'This job tests upstream drift, not the pinned-dependency health signal.',
+              'Typecheck includes the option/event coverage guard in',
+              '`src/options-coverage.test.ts`; tests replay captured event fixtures.',
+              '',
+              'Triage any new option or event deliberately: map it, reject it, or add a',
+              'documented known-excluded classification before updating the exact pin.',
+            ].join('\n');
+
+            const open = await github.paginate(github.rest.issues.listForRepo, {
+              ...context.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const existing = open.find(issue => !issue.pull_request && issue.title === title);
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: existing.number,
+                body: `Still failing.\n\n${body}`,
+              });
+            } else {
+              await github.rest.issues.create({ ...context.repo, title, body });
+            }

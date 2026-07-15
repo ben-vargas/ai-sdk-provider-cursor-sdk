@@ -1,0 +1,14 @@
+{
+  "description": "external cancellation aborts dangling tools and finishes as other",
+  "events": [
+    {
+      "update": {
+        "type": "tool-call-started",
+        "callId": "call-cancelled",
+        "modelCallId": "model-call-cancelled",
+        "toolCall": { "type": "shell", "args": { "command": "sleep 30" } }
+      }
+    }
+  ],
+  "result": { "id": "run-cancelled", "status": "cancelled" }
+}
