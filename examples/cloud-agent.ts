@@ -1,40 +1,63 @@
+/**
+ * Demonstrates an explicitly opted-in, read-only Cursor cloud repository inspection.
+ * Use this only after validating cloud access and repository permissions for your account.
+ *
+ * Prerequisites: set CURSOR_API_KEY, CURSOR_CLOUD_EXAMPLE=1, and CURSOR_CLOUD_REPO.
+ * CURSOR_MODEL optionally overrides composer-2.5; CURSOR_CLOUD_REF defaults to main.
+ */
 import { generateText } from 'ai';
 import { createCursor } from '../src/index.js';
 
-const apiKey = process.env.CURSOR_API_KEY;
-if (!apiKey) {
-  console.error('Set CURSOR_API_KEY before running this example.');
-  process.exitCode = 1;
-} else {
+async function main(): Promise<void> {
+  const apiKey = process.env.CURSOR_API_KEY;
   const repository = process.env.CURSOR_CLOUD_REPO;
+
+  if (!apiKey) {
+    console.log('Skipping cloud example: set CURSOR_API_KEY to run it.');
+    return;
+  }
+  if (process.env.CURSOR_CLOUD_EXAMPLE !== '1') {
+    console.log('Skipping cloud example: set CURSOR_CLOUD_EXAMPLE=1 to opt in.');
+    return;
+  }
+  if (!repository) {
+    console.log('Skipping cloud example: set CURSOR_CLOUD_REPO to a connected repository URL.');
+    return;
+  }
+
   const provider = createCursor({ apiKey });
   try {
     const result = await generateText({
-      model: provider(process.env.CURSOR_MODEL ?? 'auto', {
+      model: provider(process.env.CURSOR_MODEL ?? 'composer-2.5', {
         mode: 'plan',
         createNewAgentPerCall: true,
         cloud: {
-          ...(repository
-            ? {
-                repos: [
-                  {
-                    url: repository,
-                    startingRef: process.env.CURSOR_CLOUD_REF ?? 'main',
-                  },
-                ],
-              }
-            : {}),
-          autoCreatePR: process.env.CURSOR_CLOUD_AUTO_PR === '1',
+          repos: [
+            {
+              url: repository,
+              startingRef: process.env.CURSOR_CLOUD_REF ?? 'main',
+            },
+          ],
         },
       }),
-      prompt: repository
-        ? 'Summarize the repository without changing files.'
-        : 'Reply with a brief confirmation that the cloud agent is running.',
+      prompt:
+        'Inspect the repository read-only. Identify its primary language, test command, and main entry point. Do not edit files, create branches, or open a pull request.',
     });
 
-    console.log(result.text);
-    console.log('Cloud metadata:', result.providerMetadata?.cursor);
+    const metadata = result.finalStep.providerMetadata?.cursor;
+    console.log('Read-only repository report:\n', result.text);
+    console.log('Cloud run metadata:', {
+      agentId: metadata?.agentId,
+      runId: metadata?.runId,
+      requestId: metadata?.requestId,
+      status: metadata?.status,
+      model: metadata?.model,
+      durationMs: metadata?.durationMs,
+      git: metadata?.git,
+    });
   } finally {
     await provider.close();
   }
 }
+
+await main();

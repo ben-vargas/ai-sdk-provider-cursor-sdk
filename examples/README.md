@@ -1,51 +1,113 @@
 # Examples
 
-Every example requires Node.js 22.13+ and `CURSOR_API_KEY`. Build/typecheck the repository, then run
-an example with `tsx`:
+These AI SDK v7 examples require Node.js 22.13 or newer and a Cursor API key. Install dependencies,
+build the provider, and run an example with `tsx`:
 
 ```bash
-export CURSOR_API_KEY="your-key"
+npm install
 npm run build
+export CURSOR_API_KEY="your-key"
 npx tsx examples/basic-usage.ts
 ```
 
-Examples import the local source so they remain typecheckable before `dist/` exists.
+Every model example uses `process.env.CURSOR_MODEL ?? 'composer-2.5'`. `composer-2.5` is the
+recommended default because it currently offers the best quota/cost fit for this suite; set
+`CURSOR_MODEL` only when your account exposes another model you need to exercise. Run
+[`list-models.ts`](list-models.ts) to discover account-specific access.
 
-| Example                                              | Demonstrates                                      |
-| ---------------------------------------------------- | ------------------------------------------------- |
-| [`basic-usage.ts`](basic-usage.ts)                   | `generateText`, usage, and terminal metadata      |
-| [`streaming.ts`](streaming.ts)                       | `streamText` text deltas                          |
-| [`reasoning-stream.ts`](reasoning-stream.ts)         | Separate reasoning and answer deltas              |
-| [`images.ts`](images.ts)                             | Inline base64 and remote URL image input          |
-| [`tool-visibility.ts`](tool-visibility.ts)           | Observing provider-executed tool calls/results    |
-| [`custom-tools.ts`](custom-tools.ts)                 | Local Cursor callback tools                       |
-| [`session-management.ts`](session-management.ts)     | Model reuse and explicit `agentId` resume         |
-| [`conversation-history.ts`](conversation-history.ts) | Lossy `ignore` and `flatten` history policies     |
-| [`cloud-agent.ts`](cloud-agent.ts)                   | Cloud runtime settings and git metadata           |
-| [`abort-signal.ts`](abort-signal.ts)                 | Cancelling a live run with the original reason    |
-| [`usage-metadata.ts`](usage-metadata.ts)             | AI SDK usage vs raw Cursor usage/metadata         |
-| [`raw-chunks.ts`](raw-chunks.ts)                     | Redacted raw `InteractionUpdate` chunks           |
-| [`limitations.ts`](limitations.ts)                   | Unsupported/compatibility/other warnings          |
-| [`list-models.ts`](list-models.ts)                   | Account-specific `Cursor.models.list()` discovery |
-| [`error-handling.ts`](error-handling.ts)             | Authentication, busy, and stale-agent helpers     |
-| [`logging-verbose.ts`](logging-verbose.ts)           | Custom verbose diagnostics and callbacks          |
-| [`integration-test.ts`](integration-test.ts)         | Manual basic, streaming, and session smoke        |
+Examples that need local Cursor access create a disposable workspace under the operating system's
+temporary directory and remove it after `provider.close()`. They do not inspect the repository from
+which you invoke them. The repository-edit example changes only its generated fixture. Cursor runs
+can execute tools, so inspect an example before adapting it to a real workspace.
 
-Most examples use local mode against `process.cwd()`, which lets Cursor read and modify that
-workspace and execute tools. Use an isolated test repository and appropriate Cursor sandbox/policy
-settings. `custom-tools.ts` exposes an in-process tool. `cloud-agent.ts` can create cloud resources
-and may open a PR when you opt in through environment variables.
+If `CURSOR_API_KEY` is unset, every example prints a skip message and exits successfully. The commands
+below call the real Cursor API and consume quota when the key is present.
 
-Optional environment variables:
+## Suggested learning path
 
-- `CURSOR_MODEL` — model used by most examples (default `auto`)
-- `CURSOR_REASONING_MODEL` — reasoning-capable model for `reasoning-stream.ts`
-- `CURSOR_IMAGE_URL` — remote image URL for the second half of `images.ts`
-- `CURSOR_CLOUD_REPO` — Git repository URL for `cloud-agent.ts`
-- `CURSOR_CLOUD_REF` — starting ref (default `main`)
-- `CURSOR_CLOUD_AUTO_PR=1` — allow `cloud-agent.ts` to request automatic PR creation
+1. Run `basic-usage.ts` to see the result contract.
+2. Run `streaming.ts` to see multiple deltas and terminal metadata.
+3. Run `conversation-history.ts` to learn the recommended multi-turn pattern.
+4. Run `tool-visibility.ts`, then `local-repository-edit.ts`, for agent-native work.
+5. Use the observability, limitations, and persistence examples when those concerns apply.
 
-The automated live suite is a separate explicit gate:
+Cloud is deliberately excluded from this local-first path.
+
+## Quick start
+
+| Example                            | Run                               | Interesting output                                                      |
+| ---------------------------------- | --------------------------------- | ----------------------------------------------------------------------- |
+| [`basic-usage.ts`](basic-usage.ts) | `npx tsx examples/basic-usage.ts` | Text, `stop`, mapped/cache usage, and selected terminal Cursor metadata |
+| [`streaming.ts`](streaming.ts)     | `npx tsx examples/streaming.ts`   | Incremental text, observed delta count, usage, and final run metadata   |
+
+## Agent-native workflows
+
+| Example                                                | Run                                         | Interesting output / side effects                                                                               |
+| ------------------------------------------------------ | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [`tool-visibility.ts`](tool-visibility.ts)             | `npx tsx examples/tool-visibility.ts`       | Provider-executed/dynamic flags and safe structural summaries from a read-only fixture                          |
+| [`custom-tools.ts`](custom-tools.ts)                   | `npx tsx examples/custom-tools.ts`          | In-process callback invocation plus provider-executed custom-tool parts; live-smoke this surface before release |
+| [`local-repository-edit.ts`](local-repository-edit.ts) | `npx tsx examples/local-repository-edit.ts` | A failing test, Cursor's isolated source edit/tool activity, and the passing test rerun                         |
+
+## Sessions
+
+| Example                                              | Run                                        | Interesting output                                                                                       |
+| ---------------------------------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| [`conversation-history.ts`](conversation-history.ts) | `npx tsx examples/conversation-history.ts` | Native retained context and a stable `agentId` from reusing one model instance                           |
+| [`session-management.ts`](session-management.ts)     | `npx tsx examples/session-management.ts`   | Advanced cross-instance resume through two `JsonlLocalAgentStore` objects sharing one explicit directory |
+
+For ordinary multi-turn work, reuse the same model object and send a fresh single-user prompt on each
+call. Do not replay assistant/tool history. Cross-instance local resume against the default store
+failed live validation with `agent_not_found`; only teach explicit local persistence with a declared
+store and compatible workspace routing. See [session management](../docs/sessions.md).
+
+## Observability and control
+
+| Example                                    | Run                                   | Interesting output                                                                      |
+| ------------------------------------------ | ------------------------------------- | --------------------------------------------------------------------------------------- |
+| [`usage-metadata.ts`](usage-metadata.ts)   | `npx tsx examples/usage-metadata.ts`  | AI SDK totals/cache fields beside Cursor terminal usage                                 |
+| [`logging-verbose.ts`](logging-verbose.ts) | `npx tsx examples/logging-verbose.ts` | Verbose logs, ordered lifecycle callbacks, and correlated run/request IDs               |
+| [`raw-chunks.ts`](raw-chunks.ts)           | `npx tsx examples/raw-chunks.ts`      | Redacted diagnostic event-type counts via `include: { rawChunks: true }`                |
+| [`abort-signal.ts`](abort-signal.ts)       | `npx tsx examples/abort-signal.ts`    | Abort after the first text delta and identity verification of the original abort reason |
+
+Raw chunks are diagnostic and unstable. Do not treat their payloads as a versioned application
+schema.
+
+## Inputs and discovery
+
+| Example                            | Run                                                      | Interesting output                                                    |
+| ---------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------- |
+| [`images.ts`](images.ts)           | `npx tsx examples/images.ts [optional-local-image-path]` | Analysis of a bundled visual fixture plus finish, usage, and metadata |
+| [`list-models.ts`](list-models.ts) | `npx tsx examples/list-models.ts`                        | Compact account-specific IDs, aliases, parameters, and variants       |
+
+`images.ts` uses inline local bytes. Remote URL input remains excluded because that path has not been
+live-validated separately.
+
+## Limitations and recovery
+
+| Example                                  | Run                                  | Interesting output                                                                                       |
+| ---------------------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| [`limitations.ts`](limitations.ts)       | `npx tsx examples/limitations.ts`    | Feature-labeled warnings for sampling, system/history policies, application tools, and structured output |
+| [`error-handling.ts`](error-handling.ts) | `npx tsx examples/error-handling.ts` | A deterministic `agent_not_found` classification followed by fresh-session recovery                      |
+
+## Cloud opt-in
+
+| Example                            | Run                                                                                                      | Interesting output / side effects                      |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| [`cloud-agent.ts`](cloud-agent.ts) | `CURSOR_CLOUD_EXAMPLE=1 CURSOR_CLOUD_REPO=https://github.com/OWNER/REPO npx tsx examples/cloud-agent.ts` | Read-only plan-mode report plus agent/run/git metadata |
+
+The cloud example also requires `CURSOR_API_KEY`; `CURSOR_CLOUD_REF` optionally overrides `main`.
+It can create cloud agent resources and depends on repository permissions, so it has a separate
+`CURSOR_CLOUD_EXAMPLE=1` gate. It never requests automatic pull-request creation. Cloud repository
+and git-metadata behavior remain live-only surfaces and must be smoke-tested for the target account.
+
+## Maintainer verification
+
+| Example                                      | Run                                    | Interesting output                                                                                               |
+| -------------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| [`integration-test.ts`](integration-test.ts) | `npx tsx examples/integration-test.ts` | Assertions for the full generated result, multiple stream deltas, stable same-model context, and abort rejection |
+
+This manual smoke consumes several live calls. It is not part of the end-user learning path or the
+automated no-key test suite. The repository's separately gated Vitest live suite is:
 
 ```bash
 CURSOR_API_KEY=... CURSOR_INTEGRATION=1 npm run test:integration

@@ -1,8 +1,13 @@
 # Session management
 
-Cursor agents, not AI SDK prompt transcripts, own conversation state. This provider makes session
-identity explicit through model-instance reuse, `agentId`, an injected `SDKAgent`, or
-`createNewAgentPerCall`.
+Cursor agents, not AI SDK prompt transcripts, own conversation state. Reusing one model instance is
+the recommended continuation pattern. Explicit `agentId` resume is appropriate only when the target
+runtime/store can resolve that ID; injected `SDKAgent` and `createNewAgentPerCall` cover advanced and
+stateless cases.
+
+Live validation on 2026-07-15 confirmed that reusing the same model object preserves context and the
+same `providerMetadata.cursor.agentId` in both plan and agent modes. Cross-instance resume against the
+default local store failed with `agent_not_found` in that environment.
 
 ## Default: one agent per model instance
 
@@ -15,7 +20,7 @@ flowchart LR
 ```
 
 ```ts
-const model = cursor('auto', { local: { cwd: process.cwd() } });
+const model = cursor('composer-2.5', { local: { cwd: '/path/to/safe/workspace' } });
 
 await generateText({ model, prompt: 'Remember issue 417.' });
 const next = await generateText({ model, prompt: 'Which issue are we discussing?' });
@@ -34,29 +39,50 @@ flowchart LR
   S --> PM[providerMetadata.cursor.agentId]
 ```
 
-Read the ID from terminal provider metadata:
+Read the ID from terminal provider metadata. Cloud IDs route to Cursor cloud. For local agents, an
+ID is useful only when resume receives the same explicit persistence store and compatible workspace
+routing that created it.
 
 ```ts
+import { JsonlLocalAgentStore } from '@cursor/sdk';
+import { generateText } from 'ai';
+import { createCursor } from 'ai-sdk-provider-cursor-sdk';
+
+const cwd = '/path/to/safe/workspace';
+const storeDirectory = '/path/to/cursor-agent-store';
+const providerA = createCursor();
 const first = await generateText({
-  model: cursor('auto'),
+  model: providerA('composer-2.5', {
+    local: { cwd, store: new JsonlLocalAgentStore(storeDirectory) },
+  }),
   prompt: 'Create a checklist.',
 });
 
 const agentId = first.finalStep.providerMetadata?.cursor?.agentId;
 if (typeof agentId !== 'string') throw new Error('No Cursor agent ID');
+await providerA.close();
 
+const providerB = createCursor();
 const second = await generateText({
-  model: cursor('auto'),
+  model: providerB('composer-2.5', {
+    agentId,
+    sdkAgentOptions: {
+      local: { cwd, store: new JsonlLocalAgentStore(storeDirectory) },
+    },
+  }),
   prompt: 'Continue the checklist.',
-  providerOptions: { cursor: { agentId } },
 });
+await providerB.close();
 ```
 
 You can also construct a model with `{ agentId }`. Per-call `providerOptions.cursor.agentId` has the
-highest precedence. Resumed handles are cached by ID inside a provider, so later calls reuse them.
+highest precedence. Resumed handles are cached by ID inside a provider, so later calls on that model
+reuse them. The local resume path receives `sdkAgentOptions`, not creation-time `settings.local`,
+which is why the explicit store and `cwd` appear under `sdkAgentOptions.local` above.
 
 Cursor auto-detects runtime from the ID: `bc-...` routes to cloud; other IDs route to the local
-store.
+store. Do not present an ID alone as durable local persistence: the validated default-store
+cross-instance pattern is not reliable.
 
 ## Fresh agent for every call
 
@@ -68,9 +94,9 @@ flowchart LR
 ```
 
 ```ts
-const model = cursor('auto', {
+const model = cursor('composer-2.5', {
   createNewAgentPerCall: true,
-  local: { cwd: process.cwd() },
+  local: { cwd: '/path/to/safe/workspace' },
 });
 ```
 
@@ -85,12 +111,12 @@ import { createCursor } from 'ai-sdk-provider-cursor-sdk';
 
 const agent = await Agent.create({
   apiKey: process.env.CURSOR_API_KEY,
-  model: { id: 'auto' },
-  local: { cwd: process.cwd() },
+  model: { id: 'composer-2.5' },
+  local: { cwd: '/path/to/safe/workspace' },
 });
 
 const provider = createCursor();
-const model = provider('auto', { agent });
+const model = provider('composer-2.5', { agent });
 ```
 
 Injected handles are caller-owned. Neither call cleanup nor `provider.close()` closes them. Close or
@@ -136,8 +162,13 @@ start in the provider default `'agent'` mode.
 
 Local resume must resolve the same persistence store/workspace that contains the agent. Model
 `settings.local` is used during `Agent.create`; the explicit resume path passes auth, MCP servers,
-subagents, and `sdkAgentOptions`. If a resumed local agent needs a custom `cwd` or store, provide the
-appropriate `sdkAgentOptions.local` or configure Cursor's process-wide local store.
+subagents, and `sdkAgentOptions`. A cross-instance ID lookup through the default local store returned
+`agent_not_found` during the 2026-07-15 live validation, so it is not a supported persistence example.
+
+For deliberate local persistence, create with an explicit `JsonlLocalAgentStore`, then resume with a
+new store object pointed at the same directory through `sdkAgentOptions.local`, as shown above. Keep
+the `cwd` compatible as well. Portability across machines/process lifecycles remains environment
+sensitive and should be live-smoked by the application.
 
 ### Custom tools
 
@@ -193,8 +224,9 @@ serialization.
 | `ignore`  | Send only the latest user turn                       | `other` warning                    |
 | `flatten` | Serialize history into one user message              | compatibility/unsupported warnings |
 
-Resuming/reusing a session does not change the mode automatically. The safe continuation pattern is
-a new single-user-turn prompt to the same model or agent ID.
+Resuming/reusing a session does not change the mode automatically. The safe default continuation
+pattern is a new single-user-turn prompt to the same model object. Use an agent ID only when cloud or
+an explicitly configured local store can resolve it.
 
 ## Provider metadata
 
