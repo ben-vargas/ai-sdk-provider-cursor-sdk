@@ -3,7 +3,7 @@
   <a href="https://www.npmjs.com/package/ai-sdk-provider-cursor-sdk"><img src="https://img.shields.io/npm/dy/ai-sdk-provider-cursor-sdk.svg?color=5B5BD6" alt="npm downloads" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-5B5BD6" alt="License: MIT" /></a>
   <a href="https://nodejs.org/en/about/previous-releases"><img src="https://img.shields.io/badge/node-%3E%3D22.13-5B5BD6" alt="Node.js ≥ 22.13" /></a>
-  <a href="https://ai-sdk.dev/"><img src="https://img.shields.io/badge/AI%20SDK-v7-5B5BD6" alt="AI SDK v7" /></a>
+  <a href="https://ai-sdk.dev/"><img src="https://img.shields.io/badge/AI%20SDK-v6-5B5BD6" alt="AI SDK v6" /></a>
   <img src="https://img.shields.io/badge/module-ESM--only-5B5BD6" alt="ESM-only" />
   <img src="https://img.shields.io/badge/TypeScript-ready-5B5BD6" alt="TypeScript ready" />
 </p>
@@ -14,7 +14,7 @@
 [`@cursor/sdk`](https://www.npmjs.com/package/@cursor/sdk). It is an agent-native adapter:
 Cursor runs its own autonomous tool loop against a local workspace or cloud environment, and the
 provider exposes text, reasoning, tool activity, usage, sessions, cancellation, and metadata through
-AI SDK v7 primitives.
+AI SDK v6 primitives.
 
 ## Version compatibility
 
@@ -23,18 +23,17 @@ AI SDK v7 primitives.
 | `1.x`    | v7 (`LanguageModelV4`) | `@cursor/sdk@1.0.23` | `main`      | `latest`    |
 | `0.x`    | v6 (`LanguageModelV3`) | `@cursor/sdk@1.0.23` | `ai-sdk-v6` | `ai-sdk-v6` |
 
-The `main` branch and `latest` npm tag target AI SDK v7. The `ai-sdk-v6` branch and matching npm
-tag remain the maintained AI SDK v6 compatibility line.
+This `ai-sdk-v6` branch is the maintained AI SDK v6 compatibility line. The `main` branch and
+`latest` npm tag target AI SDK v7.
 
-AI SDK v7 uses the V4 provider contract: file inputs use tagged `data`, `url`, `reference`, and
-`text` variants. Automatic tool choice is a supported no-op; other tool choices warn because Cursor
-owns tool selection. Concrete AI SDK reasoning-effort values also warn because Cursor does not expose
-that control. Configure Cursor reasoning through `modelParams`.
+AI SDK v6 uses the V3 provider contract: file inputs use flat `Uint8Array | string | URL` data,
+explicit `toolChoice` values (including `auto`) warn because Cursor owns tool selection, and the V3
+call options do not expose AI SDK reasoning effort. Configure Cursor reasoning through `modelParams`.
 
 ## Installation
 
 ```bash
-npm i ai ai-sdk-provider-cursor-sdk zod
+npm install ai@^6 ai-sdk-provider-cursor-sdk@ai-sdk-v6 zod
 ```
 
 Node.js 22.13 or newer is required. The package is ESM-only.
@@ -191,8 +190,8 @@ lossy text. See [Session management](docs/sessions.md).
 ## Cursor tools
 
 Cursor executes its own built-in, MCP, subagent, and custom tools. `providerExecuted: true` is set
-on `tool-input-start` and `tool-call` parts, and every tool part carries `dynamic: true`; observe
-them, but do not execute them again:
+on `tool-input-start` and `tool-call` parts (the AI SDK v6 parts that define the field),
+and every tool part carries `dynamic: true`; observe them, but do not execute them again:
 
 ```ts
 const result = streamText({
@@ -206,8 +205,8 @@ for await (const part of result.fullStream) {
 }
 ```
 
-AI SDK `tools` and non-automatic `toolChoice` values cannot be bridged into Cursor's autonomous loop
-and produce unsupported warnings. Configure local `customTools`, `mcpServers`, or `agents` instead.
+AI SDK `tools` and explicit `toolChoice` values cannot be bridged into Cursor's autonomous loop and
+produce unsupported warnings. Configure local `customTools`, `mcpServers`, or `agents` instead.
 Tool names and payload shapes are intentionally treated as unstable.
 
 ## Cloud agents
@@ -379,8 +378,8 @@ provider is ESM-only and does not support Edge or browser runtimes. Local agents
 disk by default; use Cursor's `JsonlLocalAgentStore`, a custom local store, or cloud mode when the
 default local store is unsuitable.
 
-The `1.x` line requires Zod `^4.1.8`. Cursor's internal Zod dependency is separate; schemas are not
-shared between the packages.
+The `0.x` line supports Zod `^3.0.0 || ^4.0.0`. Cursor's internal Zod dependency is separate;
+schemas are not shared between the packages.
 
 ## Documentation
 

@@ -25,7 +25,7 @@ if (!apiKey) {
             {
               type: 'file',
               mediaType: 'image/png',
-              data: { type: 'data', data: ONE_PIXEL_PNG },
+              data: ONE_PIXEL_PNG,
             },
           ],
         },
@@ -45,7 +45,7 @@ if (!apiKey) {
               {
                 type: 'file',
                 mediaType: 'image',
-                data: { type: 'url', url: new URL(imageUrl) },
+                data: new URL(imageUrl),
               },
             ],
           },

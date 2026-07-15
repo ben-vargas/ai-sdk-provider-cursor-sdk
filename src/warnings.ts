@@ -1,11 +1,11 @@
-import type { LanguageModelV4CallOptions, SharedV4Warning } from '@ai-sdk/provider';
+import type { LanguageModelV3CallOptions, SharedV3Warning } from '@ai-sdk/provider';
 import type { CursorSettings } from './settings.js';
 
-function unsupported(feature: string, details: string): SharedV4Warning {
+function unsupported(feature: string, details: string): SharedV3Warning {
   return { type: 'unsupported', feature, details };
 }
 
-export function hasCallerHeaders(headers: LanguageModelV4CallOptions['headers']): boolean {
+export function hasCallerHeaders(headers: LanguageModelV3CallOptions['headers']): boolean {
   return Object.entries(headers ?? {}).some(
     ([name, value]) =>
       value !== undefined &&
@@ -14,10 +14,10 @@ export function hasCallerHeaders(headers: LanguageModelV4CallOptions['headers'])
 }
 
 export function generateAllWarnings(
-  options: LanguageModelV4CallOptions,
+  options: LanguageModelV3CallOptions,
   _settings: CursorSettings
-): SharedV4Warning[] {
-  const warnings: SharedV4Warning[] = [];
+): SharedV3Warning[] {
+  const warnings: SharedV3Warning[] = [];
   const unsupportedSettings: Array<[string, unknown]> = [
     ['temperature', options.temperature],
     ['topP', options.topP],
@@ -54,7 +54,7 @@ export function generateAllWarnings(
       )
     );
   }
-  if (options.toolChoice && options.toolChoice.type !== 'auto') {
+  if (options.toolChoice) {
     warnings.push(
       unsupported(
         'toolChoice',
@@ -67,14 +67,6 @@ export function generateAllWarnings(
       unsupported(
         'responseFormat',
         'Cursor SDK has no schema-constrained output; the JSON responseFormat is ignored and the call is treated as plain text. Validate client-side.'
-      )
-    );
-  }
-  if (options.reasoning !== undefined && options.reasoning !== 'provider-default') {
-    warnings.push(
-      unsupported(
-        'reasoning',
-        `Cursor SDK does not expose a reasoning-effort control; reasoning '${options.reasoning}' will be ignored. Pick a thinking model variant instead (e.g. via modelParams).`
       )
     );
   }

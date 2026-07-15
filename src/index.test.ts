@@ -1,4 +1,4 @@
-import type { LanguageModelV4, ProviderV4 } from '@ai-sdk/provider';
+import type { LanguageModelV3, ProviderV3 } from '@ai-sdk/provider';
 import * as publicApi from './index.js';
 import {
   createCursor,
@@ -42,16 +42,16 @@ describe('public API', () => {
     ]);
   });
 
-  it('instantiates a typed v4 provider with a fake key', async () => {
+  it('instantiates a typed v3 provider with a fake key', async () => {
     const settings = { mode: 'plan' } satisfies CursorSettings;
     const provider: CursorProvider = createCursor({ apiKey: 'fake-cursor-key' });
-    const providerV4: ProviderV4 = provider;
-    const model: LanguageModelV4 = provider('auto', settings);
+    const providerV3: ProviderV3 = provider;
+    const model: LanguageModelV3 = provider('auto', settings);
 
-    expect(providerV4.specificationVersion).toBe('v4');
-    expect(model.specificationVersion).toBe('v4');
+    expect(providerV3.specificationVersion).toBe('v3');
+    expect(model.specificationVersion).toBe('v3');
     expect(model.provider).toBe('cursor-sdk');
-    expect(cursor.specificationVersion).toBe('v4');
+    expect(cursor.specificationVersion).toBe('v3');
 
     await provider.close();
   });

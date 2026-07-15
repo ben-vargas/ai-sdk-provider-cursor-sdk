@@ -1,7 +1,7 @@
 {
   "name": "ai-sdk-provider-cursor-sdk",
-  "version": "1.0.0",
-  "description": "AI SDK v7 provider for the Cursor Agent SDK (@cursor/sdk)",
+  "version": "0.1.0",
+  "description": "AI SDK v6 provider for the Cursor Agent SDK (@cursor/sdk)",
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.js",
@@ -30,7 +30,7 @@
   },
   "publishConfig": {
     "access": "public",
-    "tag": "latest"
+    "tag": "ai-sdk-v6"
   },
   "keywords": [
     "ai-sdk",
@@ -60,18 +60,18 @@
     "validate": "npm run build && npm run typecheck && npm run format && npm run lint && npm run test"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^4.0.2",
-    "@ai-sdk/provider-utils": "^5.0.5",
+    "@ai-sdk/provider": "^3.0.0",
+    "@ai-sdk/provider-utils": "^4.0.1",
     "@cursor/sdk": "1.0.23"
   },
   "peerDependencies": {
-    "zod": "^4.1.8"
+    "zod": "^3.0.0 || ^4.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
     "@types/node": "^22.10.2",
     "@vitest/coverage-v8": "^3.2.4",
-    "ai": "^7.0.16",
+    "ai": "^6.0.3",
     "eslint": "^9.28.0",
     "prettier": "^3.6.2",
     "publint": "^0.3.0",

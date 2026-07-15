@@ -1,8 +1,8 @@
 import type {
   JSONObject,
-  LanguageModelV4StreamPart,
-  SharedV4ProviderMetadata,
-  SharedV4Warning,
+  LanguageModelV3StreamPart,
+  SharedV3ProviderMetadata,
+  SharedV3Warning,
 } from '@ai-sdk/provider';
 import type { InteractionUpdate, Run, RunResult } from '@cursor/sdk';
 import { createRunError, type CursorErrorContext } from './errors.js';
@@ -16,7 +16,7 @@ import {
 } from './normalized-events.js';
 import type { CursorProviderMetadata } from './types.js';
 
-function providerMetadata(value: { [key: string]: JsonValue }): SharedV4ProviderMetadata {
+function providerMetadata(value: { [key: string]: JsonValue }): SharedV3ProviderMetadata {
   return { cursor: value as JSONObject };
 }
 
@@ -24,26 +24,26 @@ function nonNullJson(value: JsonValue): Exclude<JsonValue, null> {
   return value === null ? { value: null } : value;
 }
 
-/** Thin AI SDK V4 adapter over the generation-neutral Cursor event normalizer. */
-export class CursorV4StreamEmitter {
+/** Thin AI SDK V3 adapter over the generation-neutral Cursor event normalizer. */
+export class CursorV3StreamEmitter {
   private readonly normalizer: CursorEventNormalizer;
   private readonly usage = new CursorUsageAccumulator();
   private readonly startedToolInputs = new Set<string>();
-  private warnings?: SharedV4Warning[];
+  private warnings?: SharedV3Warning[];
   private closed = false;
   private terminal = false;
   private streamedTextLength = 0;
 
   constructor(
-    private readonly controller: ReadableStreamDefaultController<LanguageModelV4StreamPart>,
+    private readonly controller: ReadableStreamDefaultController<LanguageModelV3StreamPart>,
     private readonly includeRawChunks: boolean,
     preliminaryToolResults: boolean,
-    private readonly onCompatibilityWarning?: (warning: SharedV4Warning) => void
+    private readonly onCompatibilityWarning?: (warning: SharedV3Warning) => void
   ) {
     this.normalizer = new CursorEventNormalizer(preliminaryToolResults);
   }
 
-  emitStart(warnings: SharedV4Warning[]): void {
+  emitStart(warnings: SharedV3Warning[]): void {
     this.warnings = warnings;
     this.enqueue({ type: 'stream-start', warnings });
   }
@@ -186,7 +186,7 @@ export class CursorV4StreamEmitter {
           }
           break;
         case 'compatibility-warning': {
-          const warning: SharedV4Warning = {
+          const warning: SharedV3Warning = {
             type: 'compatibility',
             feature: event.feature,
             details: event.message,
@@ -227,7 +227,7 @@ export class CursorV4StreamEmitter {
     }
   }
 
-  private enqueue(part: LanguageModelV4StreamPart): void {
+  private enqueue(part: LanguageModelV3StreamPart): void {
     if (this.closed) return;
     try {
       this.controller.enqueue(part);

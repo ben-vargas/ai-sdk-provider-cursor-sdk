@@ -28,7 +28,7 @@ function deferred<T = void>() {
   return { promise, resolve };
 }
 
-describe('AI SDK v7 integration over the mocked Cursor boundary', () => {
+describe('AI SDK v6 integration over the mocked Cursor boundary', () => {
   const originalWarningLogger = globalThis.AI_SDK_LOG_WARNINGS;
 
   beforeEach(() => {
@@ -46,10 +46,8 @@ describe('AI SDK v7 integration over the mocked Cursor boundary', () => {
     const agent = new FakeSDKAgent(loadDeltaFixture('text-only'));
     mockAgentCreate.mockResolvedValue(agent);
     const provider = createCursor({ apiKey: 'test-key', logger: false });
-    const model = provider('composer-2.5');
-    expect(model.specificationVersion).toBe('v4');
     const result = await generateText({
-      model,
+      model: provider('composer-2.5'),
       prompt: 'Say hello',
     });
 

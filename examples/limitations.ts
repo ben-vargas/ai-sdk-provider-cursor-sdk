@@ -1,4 +1,4 @@
-import type { LanguageModelV4FunctionTool } from '@ai-sdk/provider';
+import type { LanguageModelV3FunctionTool } from '@ai-sdk/provider';
 import { createCursor } from '../src/index.js';
 
 const apiKey = process.env.CURSOR_API_KEY;
@@ -7,7 +7,7 @@ if (!apiKey) {
   process.exitCode = 1;
 } else {
   const provider = createCursor({ apiKey, logger: false });
-  const tool: LanguageModelV4FunctionTool = {
+  const tool: LanguageModelV3FunctionTool = {
     type: 'function',
     name: 'application_tool',
     inputSchema: { type: 'object', properties: {} },
@@ -36,7 +36,6 @@ if (!apiKey) {
       tools: [tool],
       toolChoice: { type: 'required' },
       responseFormat: { type: 'json' },
-      reasoning: 'high',
       headers: { 'x-example': 'limitations' },
     });
 

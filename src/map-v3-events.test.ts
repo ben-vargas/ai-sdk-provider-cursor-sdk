@@ -1,6 +1,6 @@
-import type { LanguageModelV4StreamPart, SharedV4Warning } from '@ai-sdk/provider';
+import type { LanguageModelV3StreamPart, SharedV3Warning } from '@ai-sdk/provider';
 import { APICallError } from '@ai-sdk/provider';
-import { CursorV4StreamEmitter } from './map-v4-events.js';
+import { CursorV3StreamEmitter } from './map-v3-events.js';
 import {
   FakeRun,
   loadDeltaFixture,
@@ -8,11 +8,11 @@ import {
 } from './__tests__/fixtures/fake-cursor-sdk.js';
 
 function harness(args: { raw?: boolean; preliminary?: boolean } = {}) {
-  const parts: LanguageModelV4StreamPart[] = [];
+  const parts: LanguageModelV3StreamPart[] = [];
   const errors: unknown[] = [];
   let closeCount = 0;
   const controller = {
-    enqueue(part: LanguageModelV4StreamPart) {
+    enqueue(part: LanguageModelV3StreamPart) {
       parts.push(part);
     },
     close() {
@@ -21,9 +21,9 @@ function harness(args: { raw?: boolean; preliminary?: boolean } = {}) {
     error(error: unknown) {
       errors.push(error);
     },
-  } as ReadableStreamDefaultController<LanguageModelV4StreamPart>;
+  } as ReadableStreamDefaultController<LanguageModelV3StreamPart>;
   return {
-    emitter: new CursorV4StreamEmitter(controller, args.raw ?? false, args.preliminary ?? false),
+    emitter: new CursorV3StreamEmitter(controller, args.raw ?? false, args.preliminary ?? false),
     parts,
     errors,
     closeCount: () => closeCount,
@@ -37,10 +37,10 @@ const context = {
   promptExcerpt: 'hello',
 };
 
-describe('CursorV4StreamEmitter', () => {
+describe('CursorV3StreamEmitter', () => {
   it('emits stream start and response metadata without delaying early deltas', () => {
     const { emitter, parts } = harness();
-    const warnings: SharedV4Warning[] = [];
+    const warnings: SharedV3Warning[] = [];
     emitter.emitStart(warnings);
     emitter.emitUpdate({ type: 'text-delta', text: 'early' });
     const run = new FakeRun({
@@ -196,7 +196,7 @@ describe('CursorV4StreamEmitter', () => {
   it.each([
     [undefined, { status: 'completed' }],
     [null, { value: null }],
-  ] as const)('emits a non-null V4 tool result for payload %s', (result, expected) => {
+  ] as const)('emits a non-null V3 tool result for payload %s', (result, expected) => {
     const { emitter, parts } = harness();
     emitter.emitUpdate({
       type: 'tool-call-completed',
@@ -216,7 +216,7 @@ describe('CursorV4StreamEmitter', () => {
 
   it('gates event raw parts on includeRawChunks and always surfaces late warnings', () => {
     const hidden = harness();
-    const hiddenWarnings: SharedV4Warning[] = [];
+    const hiddenWarnings: SharedV3Warning[] = [];
     hidden.emitter.emitStart(hiddenWarnings);
     for (const { update } of loadDeltaFixture('unknown-safe-event').events) {
       hidden.emitter.emitUpdate(update);
@@ -338,7 +338,7 @@ describe('CursorV4StreamEmitter', () => {
 
   it('synthesizes terminal text only when no text delta was streamed', () => {
     const { emitter, parts } = harness();
-    const warnings: SharedV4Warning[] = [];
+    const warnings: SharedV3Warning[] = [];
     emitter.emitStart(warnings);
     emitter.emitTerminal(
       { id: 'run-fallback', status: 'finished', result: 'terminal text' },
@@ -358,7 +358,7 @@ describe('CursorV4StreamEmitter', () => {
 
   it('synthesizes terminal text after an empty text delta', () => {
     const { emitter, parts } = harness();
-    const warnings: SharedV4Warning[] = [];
+    const warnings: SharedV3Warning[] = [];
     emitter.emitStart(warnings);
     emitter.emitUpdate({ type: 'text-delta', text: '' });
     emitter.emitTerminal(

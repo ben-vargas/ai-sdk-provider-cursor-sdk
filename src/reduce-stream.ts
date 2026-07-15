@@ -1,24 +1,24 @@
 import {
   APICallError,
-  type LanguageModelV4Content,
-  type LanguageModelV4GenerateResult,
-  type LanguageModelV4ResponseMetadata,
-  type LanguageModelV4StreamPart,
-  type SharedV4ProviderMetadata,
-  type SharedV4Warning,
+  type LanguageModelV3Content,
+  type LanguageModelV3GenerateResult,
+  type LanguageModelV3ResponseMetadata,
+  type LanguageModelV3StreamPart,
+  type SharedV3ProviderMetadata,
+  type SharedV3Warning,
 } from '@ai-sdk/provider';
 
 export async function reduceCursorStream(
-  stream: ReadableStream<LanguageModelV4StreamPart>
-): Promise<LanguageModelV4GenerateResult> {
-  const content: LanguageModelV4Content[] = [];
+  stream: ReadableStream<LanguageModelV3StreamPart>
+): Promise<LanguageModelV3GenerateResult> {
+  const content: LanguageModelV3Content[] = [];
   const contentIndexes = new Map<string, number>();
   const toolResultIndexes = new Map<string, number>();
-  let warnings: SharedV4Warning[] = [];
-  let finishReason: LanguageModelV4GenerateResult['finishReason'] | undefined;
-  let usage: LanguageModelV4GenerateResult['usage'] | undefined;
-  let providerMetadata: SharedV4ProviderMetadata | undefined;
-  let response: LanguageModelV4ResponseMetadata | undefined;
+  let warnings: SharedV3Warning[] = [];
+  let finishReason: LanguageModelV3GenerateResult['finishReason'] | undefined;
+  let usage: LanguageModelV3GenerateResult['usage'] | undefined;
+  let providerMetadata: SharedV3ProviderMetadata | undefined;
+  let response: LanguageModelV3ResponseMetadata | undefined;
 
   for await (const part of stream) {
     switch (part.type) {
@@ -69,7 +69,6 @@ export async function reduceCursorStream(
       case 'tool-approval-request':
       case 'file':
       case 'source':
-      case 'custom':
         content.push(part);
         break;
       case 'tool-result': {

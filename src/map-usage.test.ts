@@ -2,7 +2,7 @@ import type { TokenUsage } from '@cursor/sdk';
 import { CursorUsageAccumulator, mapCursorUsage } from './map-usage.js';
 
 describe('mapCursorUsage', () => {
-  it('maps cache and reasoning tokens into the V4 nested shape', () => {
+  it('maps cache and reasoning tokens into the V3 nested shape', () => {
     const usage: TokenUsage = {
       inputTokens: 10,
       outputTokens: 8,

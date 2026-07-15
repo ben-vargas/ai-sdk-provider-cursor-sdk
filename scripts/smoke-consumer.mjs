@@ -31,7 +31,7 @@ try {
       private: true,
       type: 'module',
       dependencies: {
-        ai: '^7.0.16',
+        ai: '^6.0.3',
         'ai-sdk-provider-cursor-sdk': `file:${tarball}`,
         zod: '^4.1.12',
       },
@@ -85,7 +85,7 @@ try {
     import { generateText } from 'ai';
     import { createCursor, isAuthenticationError } from 'ai-sdk-provider-cursor-sdk';
     const model = createCursor()('auto');
-    assert.equal(model.specificationVersion, 'v4');
+    assert.equal(model.specificationVersion, 'v3');
     try {
       await generateText({ model, prompt: 'smoke' });
       throw new Error('Expected a missing-key failure.');

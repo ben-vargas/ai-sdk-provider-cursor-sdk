@@ -1,7 +1,7 @@
-import type { LanguageModelV4FinishReason } from '@ai-sdk/provider';
+import type { LanguageModelV3FinishReason } from '@ai-sdk/provider';
 import type { RunResult } from '@cursor/sdk';
 
-export function mapCursorFinishReason(result: RunResult): LanguageModelV4FinishReason {
+export function mapCursorFinishReason(result: RunResult): LanguageModelV3FinishReason {
   switch (result.status) {
     case 'finished':
       return { unified: 'stop', raw: 'finished' };

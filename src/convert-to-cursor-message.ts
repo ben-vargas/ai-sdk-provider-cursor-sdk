@@ -1,10 +1,10 @@
 import {
   UnsupportedFunctionalityError,
-  type LanguageModelV4FilePart,
-  type LanguageModelV4Message,
-  type LanguageModelV4Prompt,
-  type LanguageModelV4ToolResultOutput,
-  type SharedV4Warning,
+  type LanguageModelV3FilePart,
+  type LanguageModelV3Message,
+  type LanguageModelV3Prompt,
+  type LanguageModelV3ToolResultOutput,
+  type SharedV3Warning,
 } from '@ai-sdk/provider';
 import { convertToBase64 } from '@ai-sdk/provider-utils';
 import type { SDKImage, SDKUserMessage } from '@cursor/sdk';
@@ -18,19 +18,19 @@ export interface CursorPromptPolicy {
 
 export interface ConvertedCursorMessage {
   message: SDKUserMessage;
-  warnings: SharedV4Warning[];
+  warnings: SharedV3Warning[];
 }
 
-type UserMessage = Extract<LanguageModelV4Message, { role: 'user' }>;
+type UserMessage = Extract<LanguageModelV3Message, { role: 'user' }>;
 
 const HISTORY_ERROR =
   "Cursor agents manage conversation state server-side and cannot ingest an arbitrary message history. Resume the same model instance or pass providerOptions.cursor.agentId to continue a session, or opt into promptHistoryMode: 'ignore' | 'flatten' (both lossy).";
 
-function unsupported(feature: string, details: string): SharedV4Warning {
+function unsupported(feature: string, details: string): SharedV3Warning {
   return { type: 'unsupported', feature, details };
 }
 
-function compatibility(feature: string, details: string): SharedV4Warning {
+function compatibility(feature: string, details: string): SharedV3Warning {
   return { type: 'compatibility', feature, details };
 }
 
@@ -54,7 +54,7 @@ function serializeToolCallInput(input: unknown): string {
   return serialized.length > 1000 ? `${serialized.slice(0, 1000)}...[truncated]` : serialized;
 }
 
-function serializeToolResult(output: LanguageModelV4ToolResultOutput): string {
+function serializeToolResult(output: LanguageModelV3ToolResultOutput): string {
   switch (output.type) {
     case 'text':
     case 'error-text':
@@ -72,7 +72,12 @@ function serializeToolResult(output: LanguageModelV4ToolResultOutput): string {
               return part.text;
             case 'custom':
               return '[custom omitted]';
-            case 'file':
+            case 'file-data':
+            case 'file-url':
+            case 'file-id':
+            case 'image-data':
+            case 'image-url':
+            case 'image-file-id':
               return '[file omitted]';
           }
         })
@@ -91,8 +96,8 @@ function unwrapDataUrl(data: string): string {
 }
 
 function mapImagePart(
-  part: LanguageModelV4FilePart,
-  warnings: SharedV4Warning[]
+  part: LanguageModelV3FilePart,
+  warnings: SharedV3Warning[]
 ): SDKImage | undefined {
   if (!isImage(part.mediaType)) {
     warnings.push(
@@ -104,39 +109,17 @@ function mapImagePart(
     return undefined;
   }
 
-  switch (part.data.type) {
-    case 'data':
-      return {
-        data: convertToBase64(
-          typeof part.data.data === 'string' ? unwrapDataUrl(part.data.data) : part.data.data
-        ),
-        mimeType: part.mediaType,
-      };
-    case 'url':
-      return { url: part.data.url.toString() };
-    case 'reference':
-      warnings.push(
-        unsupported(
-          'prompt.user.file.reference',
-          'Provider file references are not supported; supply inline data or a URL.'
-        )
-      );
-      return undefined;
-    case 'text':
-      warnings.push(
-        unsupported(
-          'prompt.user.file.text',
-          'Text-backed image files are not supported; supply inline data or a URL.'
-        )
-      );
-      return undefined;
-  }
+  if (part.data instanceof URL) return { url: part.data.toString() };
+  return {
+    data: convertToBase64(typeof part.data === 'string' ? unwrapDataUrl(part.data) : part.data),
+    mimeType: part.mediaType,
+  };
 }
 
 function convertUserMessage(message: UserMessage): ConvertedCursorMessage {
   const text: string[] = [];
   const images: SDKImage[] = [];
-  const warnings: SharedV4Warning[] = [];
+  const warnings: SharedV3Warning[] = [];
   for (const part of message.content) {
     switch (part.type) {
       case 'text':
@@ -166,12 +149,12 @@ function convertUserMessage(message: UserMessage): ConvertedCursorMessage {
 }
 
 function flattenPrompt(
-  prompt: LanguageModelV4Prompt,
+  prompt: LanguageModelV3Prompt,
   finalUserIndex: number
 ): { converted: ConvertedCursorMessage; hasUserContent: boolean } {
   const blocks: string[] = [];
   const images: SDKImage[] = [];
-  const warnings: SharedV4Warning[] = [];
+  const warnings: SharedV3Warning[] = [];
   let hasUserContent = false;
 
   for (const [messageIndex, message] of prompt.entries()) {
@@ -239,22 +222,6 @@ function flattenPrompt(
               )
             );
             break;
-          case 'reasoning-file':
-            warnings.push(
-              unsupported(
-                'prompt.assistant.reasoning-file',
-                'Assistant reasoning files cannot be represented in a Cursor user message and were omitted.'
-              )
-            );
-            break;
-          case 'custom':
-            warnings.push(
-              unsupported(
-                'prompt.assistant.custom',
-                'Assistant custom content cannot be represented in a Cursor user message and was omitted.'
-              )
-            );
-            break;
           case 'file':
             warnings.push(
               unsupported(
@@ -291,7 +258,7 @@ function applySystemPolicy(
   message: SDKUserMessage,
   systemText: string,
   mode: CursorSystemMessageMode,
-  warnings: SharedV4Warning[]
+  warnings: SharedV3Warning[]
 ): void {
   if (!systemText) return;
   if (mode === 'reject') {
@@ -320,7 +287,7 @@ function applySystemPolicy(
 }
 
 export function convertToCursorMessage(
-  prompt: LanguageModelV4Prompt,
+  prompt: LanguageModelV3Prompt,
   policy: CursorPromptPolicy
 ): ConvertedCursorMessage {
   const userMessages = prompt

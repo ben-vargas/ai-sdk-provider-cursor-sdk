@@ -1,4 +1,4 @@
-import type { JSONObject, LanguageModelV4Usage } from '@ai-sdk/provider';
+import type { JSONObject, LanguageModelV3Usage } from '@ai-sdk/provider';
 import type { TokenUsage } from '@cursor/sdk';
 import type { NormalizedUsageInput } from './normalized-events.js';
 
@@ -71,7 +71,7 @@ export class CursorUsageAccumulator {
   }
 }
 
-export function mapCursorUsage(usage?: TokenUsage): LanguageModelV4Usage {
+export function mapCursorUsage(usage?: TokenUsage): LanguageModelV3Usage {
   return {
     inputTokens: {
       total: usage ? usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens : undefined,

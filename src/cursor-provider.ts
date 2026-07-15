@@ -1,4 +1,4 @@
-import { NoSuchModelError, type LanguageModelV4, type ProviderV4 } from '@ai-sdk/provider';
+import { NoSuchModelError, type LanguageModelV3, type ProviderV3 } from '@ai-sdk/provider';
 import { CursorAgentManager } from './cursor-agent-manager.js';
 import { CursorLanguageModel } from './cursor-language-model.js';
 import { getLogger, type Logger } from './logger.js';
@@ -12,12 +12,13 @@ export interface CursorProviderSettings {
   logger?: Logger | false;
 }
 
-export interface CursorProvider extends ProviderV4 {
-  (modelId: CursorModelId, settings?: CursorSettings): LanguageModelV4;
-  readonly specificationVersion: 'v4';
-  languageModel(modelId: CursorModelId, settings?: CursorSettings): LanguageModelV4;
-  chat(modelId: CursorModelId, settings?: CursorSettings): LanguageModelV4;
+export interface CursorProvider extends ProviderV3 {
+  (modelId: CursorModelId, settings?: CursorSettings): LanguageModelV3;
+  readonly specificationVersion: 'v3';
+  languageModel(modelId: CursorModelId, settings?: CursorSettings): LanguageModelV3;
+  chat(modelId: CursorModelId, settings?: CursorSettings): LanguageModelV3;
   embeddingModel(modelId: string): never;
+  textEmbeddingModel(modelId: string): never;
   imageModel(modelId: string): never;
   close(): Promise<void>;
   dispose(): Promise<void>;
@@ -34,7 +35,7 @@ export function createCursor(options: CursorProviderSettings = {}): CursorProvid
   const createModel = (
     modelId: CursorModelId,
     modelSettings: CursorSettings = {}
-  ): LanguageModelV4 => {
+  ): LanguageModelV3 => {
     const merged = mergeCursorSettings(defaultSettings, modelSettings);
     const settings = validateCursorSettings({
       ...merged,
@@ -51,7 +52,7 @@ export function createCursor(options: CursorProviderSettings = {}): CursorProvid
   const provider = function cursorModel(
     modelId: CursorModelId,
     modelSettings?: CursorSettings
-  ): LanguageModelV4 {
+  ): LanguageModelV3 {
     if (new.target) {
       throw new Error('The Cursor model function cannot be called with the new keyword.');
     }
@@ -59,12 +60,13 @@ export function createCursor(options: CursorProviderSettings = {}): CursorProvid
   };
 
   const close = async (): Promise<void> => agentManager.close();
-  provider.specificationVersion = 'v4' as const;
+  provider.specificationVersion = 'v3' as const;
   provider.languageModel = createModel;
   provider.chat = createModel;
   provider.embeddingModel = (modelId: string): never => {
     throw new NoSuchModelError({ modelId, modelType: 'embeddingModel' });
   };
+  provider.textEmbeddingModel = provider.embeddingModel;
   provider.imageModel = (modelId: string): never => {
     throw new NoSuchModelError({ modelId, modelType: 'imageModel' });
   };

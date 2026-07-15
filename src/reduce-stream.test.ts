@@ -1,4 +1,4 @@
-import { APICallError, type LanguageModelV4StreamPart } from '@ai-sdk/provider';
+import { APICallError, type LanguageModelV3StreamPart } from '@ai-sdk/provider';
 import { reduceCursorStream } from './reduce-stream.js';
 
 const usage = {
@@ -6,7 +6,7 @@ const usage = {
   outputTokens: { total: 4, text: 3, reasoning: 1 },
 };
 
-function streamOf(parts: LanguageModelV4StreamPart[]): ReadableStream<LanguageModelV4StreamPart> {
+function streamOf(parts: LanguageModelV3StreamPart[]): ReadableStream<LanguageModelV3StreamPart> {
   return new ReadableStream({
     start(controller) {
       for (const part of parts) controller.enqueue(part);
@@ -161,19 +161,6 @@ describe('reduceCursorStream', () => {
         providerMetadata: { cursor: { thinkingDurationMs: 1200 } },
       },
       { type: 'text', text: 'hi', providerMetadata: { cursor: { note: 'done' } } },
-    ]);
-  });
-
-  it('appends custom stream parts to folded content', async () => {
-    const result = await reduceCursorStream(
-      streamOf([
-        { type: 'stream-start', warnings: [] },
-        { type: 'custom', kind: 'cursor.checkpoint', providerMetadata: { cursor: { at: 1 } } },
-        { type: 'finish', finishReason: { unified: 'stop', raw: 'finished' }, usage },
-      ])
-    );
-    expect(result.content).toEqual([
-      { type: 'custom', kind: 'cursor.checkpoint', providerMetadata: { cursor: { at: 1 } } },
     ]);
   });
 

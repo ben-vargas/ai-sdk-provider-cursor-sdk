@@ -1,14 +1,14 @@
 import {
   LoadAPIKeyError,
   NoSuchModelError,
-  type LanguageModelV4CallOptions,
+  type LanguageModelV3CallOptions,
 } from '@ai-sdk/provider';
 import { CursorLanguageModel } from './cursor-language-model.js';
 import { createCursor, cursor } from './cursor-provider.js';
 import { FakeSDKAgent, loadDeltaFixture } from './__tests__/fixtures/fake-cursor-sdk.js';
 import { mockAgentCreate, resetCursorSdkMock } from './__tests__/fixtures/mock-cursor-sdk.js';
 
-const prompt: LanguageModelV4CallOptions = {
+const prompt: LanguageModelV3CallOptions = {
   prompt: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }],
 };
 
@@ -25,19 +25,19 @@ describe('createCursor', () => {
     else process.env.CURSOR_API_KEY = originalApiKey;
   });
 
-  it('creates callable, languageModel, and chat V4 model factories', () => {
+  it('creates callable, languageModel, and chat V3 model factories', () => {
     const provider = createCursor({ apiKey: 'key', logger: false });
-    expect(provider.specificationVersion).toBe('v4');
+    expect(provider.specificationVersion).toBe('v3');
     expect(provider('auto')).toBeInstanceOf(CursorLanguageModel);
     expect(provider('account-model')).toMatchObject({
-      specificationVersion: 'v4',
+      specificationVersion: 'v3',
       provider: 'cursor-sdk',
       modelId: 'account-model',
       supportedUrls: { 'image/*': [expect.any(RegExp)] },
     });
     expect(provider.languageModel('auto').modelId).toBe('auto');
     expect(provider.chat('composer-2.5').modelId).toBe('composer-2.5');
-    expect(cursor.specificationVersion).toBe('v4');
+    expect(cursor.specificationVersion).toBe('v3');
     expect('files' in provider).toBe(false);
     expect('skills' in provider).toBe(false);
   });
@@ -58,6 +58,7 @@ describe('createCursor', () => {
 
   it.each([
     ['embeddingModel', 'embed', 'embeddingModel'],
+    ['textEmbeddingModel', 'legacy-embed', 'embeddingModel'],
     ['imageModel', 'image', 'imageModel'],
   ] as const)('throws NoSuchModelError from %s', (method, modelId, modelType) => {
     const provider = createCursor({ logger: false });
@@ -69,11 +70,6 @@ describe('createCursor', () => {
     }
     expect(NoSuchModelError.isInstance(thrown)).toBe(true);
     expect(thrown).toMatchObject({ modelId, modelType });
-  });
-
-  it('does not expose the removed V3 textEmbeddingModel alias', () => {
-    const provider = createCursor({ logger: false });
-    expect('textEmbeddingModel' in provider).toBe(false);
   });
 
   it('resolves API keys in model, provider, then environment precedence', async () => {

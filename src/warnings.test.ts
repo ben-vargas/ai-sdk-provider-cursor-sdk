@@ -1,7 +1,7 @@
-import type { LanguageModelV4CallOptions } from '@ai-sdk/provider';
+import type { LanguageModelV3CallOptions } from '@ai-sdk/provider';
 import { generateAllWarnings, hasCallerHeaders } from './warnings.js';
 
-function options(overrides: Partial<LanguageModelV4CallOptions> = {}): LanguageModelV4CallOptions {
+function options(overrides: Partial<LanguageModelV3CallOptions> = {}): LanguageModelV3CallOptions {
   return {
     prompt: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }],
     ...overrides,
@@ -89,25 +89,15 @@ describe('generateAllWarnings', () => {
     ]);
   });
 
-  it('does not warn for automatic tool choice', () => {
-    expect(generateAllWarnings(options({ toolChoice: { type: 'auto' } }), {})).toEqual([]);
-  });
-
-  it.each(['none', 'minimal', 'low', 'medium', 'high', 'xhigh'] as const)(
-    'warns for concrete reasoning effort %s',
-    (reasoning) => {
-      expect(generateAllWarnings(options({ reasoning }), {})).toEqual([
-        {
-          type: 'unsupported',
-          feature: 'reasoning',
-          details: `Cursor SDK does not expose a reasoning-effort control; reasoning '${reasoning}' will be ignored. Pick a thinking model variant instead (e.g. via modelParams).`,
-        },
-      ]);
-    }
-  );
-
-  it('does not warn for provider-default reasoning', () => {
-    expect(generateAllWarnings(options({ reasoning: 'provider-default' }), {})).toEqual([]);
+  it('warns for automatic tool choice because V3 preserves explicit user intent', () => {
+    expect(generateAllWarnings(options({ toolChoice: { type: 'auto' } }), {})).toEqual([
+      {
+        type: 'unsupported',
+        feature: 'toolChoice',
+        details:
+          "Cursor SDK does not support toolChoice 'auto'; only automatic tool selection is available.",
+      },
+    ]);
   });
 
   it('ignores empty stop sequences and empty tools', () => {
@@ -116,16 +106,14 @@ describe('generateAllWarnings', () => {
 
   it('warns only for caller-supplied headers', () => {
     expect(hasCallerHeaders(undefined)).toBe(false);
-    expect(hasCallerHeaders({ 'user-agent': 'ai/7.0.16' })).toBe(false);
-    expect(hasCallerHeaders({ 'User-Agent': 'ai/7.0.16-beta.1' })).toBe(false);
+    expect(hasCallerHeaders({ 'user-agent': 'ai/6.0.3' })).toBe(false);
+    expect(hasCallerHeaders({ 'User-Agent': 'ai/6.0.3-beta.1' })).toBe(false);
     expect(hasCallerHeaders({ authorization: undefined })).toBe(false);
     expect(hasCallerHeaders({ 'user-agent': 'custom-agent' })).toBe(true);
     expect(hasCallerHeaders({ 'x-request-id': 'request-1' })).toBe(true);
-    expect(hasCallerHeaders({ 'user-agent': 'ai/7.0.16', 'x-request-id': 'request-1' })).toBe(true);
+    expect(hasCallerHeaders({ 'user-agent': 'ai/6.0.3', 'x-request-id': 'request-1' })).toBe(true);
 
-    expect(generateAllWarnings(options({ headers: { 'user-agent': 'ai/7.0.16' } }), {})).toEqual(
-      []
-    );
+    expect(generateAllWarnings(options({ headers: { 'user-agent': 'ai/6.0.3' } }), {})).toEqual([]);
 
     expect(generateAllWarnings(options({ headers: { 'x-request-id': 'request-1' } }), {})).toEqual([
       {

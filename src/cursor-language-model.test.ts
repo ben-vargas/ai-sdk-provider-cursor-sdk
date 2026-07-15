@@ -1,8 +1,8 @@
 import {
   APICallError,
   LoadAPIKeyError,
-  type LanguageModelV4CallOptions,
-  type LanguageModelV4StreamPart,
+  type LanguageModelV3CallOptions,
+  type LanguageModelV3StreamPart,
 } from '@ai-sdk/provider';
 import { AgentNotFoundError, NetworkError, type Run, type SDKAgent } from '@cursor/sdk';
 import { CursorAgentManager } from './cursor-agent-manager.js';
@@ -26,8 +26,8 @@ function deferred<T = void>() {
 }
 
 function callOptions(
-  overrides: Partial<LanguageModelV4CallOptions> = {}
-): LanguageModelV4CallOptions {
+  overrides: Partial<LanguageModelV3CallOptions> = {}
+): LanguageModelV3CallOptions {
   return {
     prompt: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }],
     ...overrides,
@@ -48,9 +48,9 @@ function model(
 }
 
 async function collect(
-  stream: ReadableStream<LanguageModelV4StreamPart>
-): Promise<LanguageModelV4StreamPart[]> {
-  const parts: LanguageModelV4StreamPart[] = [];
+  stream: ReadableStream<LanguageModelV3StreamPart>
+): Promise<LanguageModelV3StreamPart[]> {
+  const parts: LanguageModelV3StreamPart[] = [];
   for await (const part of stream) parts.push(part);
   return parts;
 }
@@ -167,7 +167,7 @@ describe('CursorLanguageModel streaming and generation', () => {
           localForce: true,
         },
       },
-    } satisfies Partial<LanguageModelV4CallOptions>;
+    } satisfies Partial<LanguageModelV3CallOptions>;
     await languageModel.doGenerate(callOptions(overrides));
     await languageModel.doGenerate(callOptions(overrides));
     expect(agent.sent).toHaveLength(2);
@@ -584,7 +584,7 @@ describe('CursorLanguageModel abort and cancellation', () => {
     const reason = new Error('abort after delta');
     const { stream } = await model(agent).doStream(callOptions({ abortSignal: controller.signal }));
     const reader = stream.getReader();
-    const observed: LanguageModelV4StreamPart[] = [];
+    const observed: LanguageModelV3StreamPart[] = [];
 
     while (!observed.some((part) => part.type === 'text-delta')) {
       const next = await reader.read();

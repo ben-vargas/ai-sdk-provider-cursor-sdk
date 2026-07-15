@@ -1,7 +1,7 @@
 import {
   UnsupportedFunctionalityError,
-  type LanguageModelV4Prompt,
-  type LanguageModelV4ToolResultOutput,
+  type LanguageModelV3Prompt,
+  type LanguageModelV3ToolResultOutput,
 } from '@ai-sdk/provider';
 import { convertToCursorMessage, type CursorPromptPolicy } from './convert-to-cursor-message.js';
 
@@ -14,7 +14,7 @@ function policy(overrides: Partial<CursorPromptPolicy> = {}): CursorPromptPolicy
   };
 }
 
-function historyPrompt(): LanguageModelV4Prompt {
+function historyPrompt(): LanguageModelV3Prompt {
   return [
     { role: 'system', content: 'Be precise.' },
     { role: 'user', content: [{ type: 'text', text: 'First' }] },
@@ -170,30 +170,27 @@ describe('convertToCursorMessage', () => {
             {
               type: 'file',
               mediaType: 'image/png',
-              data: { type: 'data', data: new Uint8Array([104, 105]) },
+              data: new Uint8Array([104, 105]),
             },
             {
               type: 'file',
               mediaType: 'image/jpeg',
-              data: { type: 'data', data: 'aGVsbG8=' },
+              data: 'aGVsbG8=',
             },
             {
               type: 'file',
               mediaType: 'image/gif',
-              data: { type: 'data', data: 'data:image/gif;base64,R0lGODlh' },
+              data: 'data:image/gif;base64,R0lGODlh',
             },
             {
               type: 'file',
               mediaType: 'image/svg+xml',
-              data: {
-                type: 'data',
-                data: 'data:image/svg+xml;charset=utf-8;base64,PHN2Zz4=',
-              },
+              data: 'data:image/svg+xml;charset=utf-8;base64,PHN2Zz4=',
             },
             {
               type: 'file',
               mediaType: 'image/webp',
-              data: { type: 'url', url: new URL('https://example.test/image.webp') },
+              data: new URL('https://example.test/image.webp'),
             },
           ],
         },
@@ -212,44 +209,6 @@ describe('convertToCursorMessage', () => {
     });
   });
 
-  it('warns and drops V4 provider-reference and tagged-text image data', () => {
-    const result = convertToCursorMessage(
-      [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: 'keep' },
-            {
-              type: 'file',
-              mediaType: 'image/png',
-              data: { type: 'reference', reference: { cursor: 'image-1' } },
-            },
-            {
-              type: 'file',
-              mediaType: 'image/svg+xml',
-              data: { type: 'text', text: '<svg />' },
-            },
-          ],
-        },
-      ],
-      policy()
-    );
-
-    expect(result.message).toEqual({ text: 'keep' });
-    expect(result.warnings).toEqual([
-      {
-        type: 'unsupported',
-        feature: 'prompt.user.file.reference',
-        details: 'Provider file references are not supported; supply inline data or a URL.',
-      },
-      {
-        type: 'unsupported',
-        feature: 'prompt.user.file.text',
-        details: 'Text-backed image files are not supported; supply inline data or a URL.',
-      },
-    ]);
-  });
-
   it('warns and drops non-image and unknown user parts', () => {
     const result = convertToCursorMessage(
       [
@@ -260,7 +219,7 @@ describe('convertToCursorMessage', () => {
             {
               type: 'file',
               mediaType: 'application/pdf',
-              data: { type: 'data', data: 'cGRm' },
+              data: 'cGRm',
             },
             { type: 'audio', data: 'ignored' } as never,
           ],
@@ -307,11 +266,12 @@ describe('convertToCursorMessage', () => {
                 type: 'content',
                 value: [
                   { type: 'text', text: 'stdout' },
-                  {
-                    type: 'file',
-                    mediaType: 'text/plain',
-                    data: { type: 'data', data: 'ZmlsZQ==' },
-                  },
+                  { type: 'file-data', mediaType: 'text/plain', data: 'ZmlsZQ==' },
+                  { type: 'file-url', url: 'https://example.test/report.txt' },
+                  { type: 'file-id', fileId: 'file-1' },
+                  { type: 'image-data', mediaType: 'image/png', data: 'aW1hZ2U=' },
+                  { type: 'image-url', url: 'https://example.test/image.png' },
+                  { type: 'image-file-id', fileId: { cursor: 'image-1' } },
                   { type: 'custom' },
                 ],
               },
@@ -329,7 +289,8 @@ describe('convertToCursorMessage', () => {
         'Assistant: [Tool call: lookup({"q":"x"})]\n' +
         'Tool Result (lookup): {"answer":1}\n\n' +
         'Tool Result (shell): stdout\n' +
-        '[file omitted]\n[custom omitted]\n\n' +
+        '[file omitted]\n[file omitted]\n[file omitted]\n[file omitted]\n' +
+        '[file omitted]\n[file omitted]\n[custom omitted]\n\n' +
         'Human: Continue'
     );
   });
@@ -339,7 +300,7 @@ describe('convertToCursorMessage', () => {
     [{ type: 'error-text', value: 'plain error' }, 'plain error'],
     [{ type: 'error-json', value: { message: 'boom' } }, '{"message":"boom"}'],
     [{ type: 'execution-denied', reason: 'not allowed' }, '[execution denied]'],
-  ] satisfies Array<[LanguageModelV4ToolResultOutput, string]>)(
+  ] satisfies Array<[LanguageModelV3ToolResultOutput, string]>)(
     'serializes flattened %s tool results exactly',
     (output, serialized) => {
       const result = convertToCursorMessage(
@@ -381,7 +342,7 @@ describe('convertToCursorMessage', () => {
     expect(convertInput(exactly1000).message.text).not.toContain('...[truncated]');
   });
 
-  it('omits V4 assistant reasoning, reasoning-file, custom, and file parts with warnings', () => {
+  it('omits V3 assistant reasoning and file parts with feature-specific warnings', () => {
     const result = convertToCursorMessage(
       [
         { role: 'user', content: [{ type: 'text', text: 'First' }] },
@@ -390,15 +351,9 @@ describe('convertToCursorMessage', () => {
           content: [
             { type: 'reasoning', text: 'secret thought' },
             {
-              type: 'reasoning-file',
-              mediaType: 'text/plain',
-              data: { type: 'data', data: 'cmVhc29uaW5n' },
-            },
-            { type: 'custom', kind: 'cursor.note' },
-            {
               type: 'file',
               mediaType: 'image/png',
-              data: { type: 'data', data: 'aW1hZ2U=' },
+              data: 'aW1hZ2U=',
             },
           ],
         },
@@ -413,18 +368,6 @@ describe('convertToCursorMessage', () => {
           feature: 'prompt.assistant.reasoning',
           details:
             'Assistant reasoning cannot be represented in a Cursor user message and was omitted.',
-        },
-        {
-          type: 'unsupported',
-          feature: 'prompt.assistant.reasoning-file',
-          details:
-            'Assistant reasoning files cannot be represented in a Cursor user message and were omitted.',
-        },
-        {
-          type: 'unsupported',
-          feature: 'prompt.assistant.custom',
-          details:
-            'Assistant custom content cannot be represented in a Cursor user message and was omitted.',
         },
         {
           type: 'unsupported',
@@ -446,7 +389,7 @@ describe('convertToCursorMessage', () => {
             {
               type: 'file',
               mediaType: 'image/png',
-              data: { type: 'url', url: new URL('https://example.test/old.png') },
+              data: new URL('https://example.test/old.png'),
             },
           ],
         },
@@ -458,7 +401,7 @@ describe('convertToCursorMessage', () => {
             {
               type: 'file',
               mediaType: 'image/png',
-              data: { type: 'url', url: new URL('https://example.test/new.png') },
+              data: new URL('https://example.test/new.png'),
             },
           ],
         },
@@ -506,7 +449,7 @@ describe('convertToCursorMessage', () => {
       name: 'whitespace-only user text',
       prompt: [{ role: 'user', content: [{ type: 'text', text: '   ' }] }],
     },
-  ] satisfies Array<{ name: string; prompt: LanguageModelV4Prompt }>)(
+  ] satisfies Array<{ name: string; prompt: LanguageModelV3Prompt }>)(
     'rejects an empty effective prompt: $name',
     ({ prompt }) => {
       for (const promptHistoryMode of ['reject', 'ignore', 'flatten'] as const) {

@@ -59,10 +59,7 @@ describe.skipIf(!integrationEnabled || !apiKey)('cursor-sdk live', () => {
               {
                 type: 'file',
                 mediaType: 'image/png',
-                data: {
-                  type: 'data',
-                  data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z9xkAAAAASUVORK5CYII=',
-                },
+                data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z9xkAAAAASUVORK5CYII=',
               },
             ],
           },

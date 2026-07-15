@@ -2,10 +2,10 @@
 
 This document compares the union of AI SDK v7 (`LanguageModelV4` / `ProviderV4`) and AI SDK v6
 (`LanguageModelV3` / `ProviderV3`) with the public surface of `@cursor/sdk@1.0.23`. It describes the
-AI SDK v7 behavior implemented on `main`; rows that differ for the `ai-sdk-v6` branch are marked.
+behavior implemented on `main`; rows that differ for the planned `ai-sdk-v6` branch are marked.
 
-This document defaults to the v7 `main` behavior. On the `ai-sdk-v6` branch, v7-only rows do not
-apply; where a row distinguishes versions, the v6 behavior is authoritative.
+On the `ai-sdk-v6` branch, v7-only rows do not apply; where a row distinguishes versions, the v6
+behavior is authoritative.
 
 ## Classification
 
@@ -50,7 +50,7 @@ that a warning or typed error exists.
 | --------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Application-executed function tools                 | **UNSUPPORTED-WARN**                                                               | Cursor owns an autonomous tool loop; AI SDK tools cannot be registered or answered through this adapter.                                                                                                                                      |
 | AI SDK provider-defined tools                       | **UNSUPPORTED-WARN**                                                               | Same warning path as function tools.                                                                                                                                                                                                          |
-| `toolChoice: 'auto'`                                | **SUPPORTED** no-op on v7                                                          | Automatic selection is Cursor's only mode. AI SDK v7 injects `auto`, so no warning is emitted. The v6 compatibility branch warns for an explicitly supplied `auto`.                                                                           |
+| `toolChoice: 'auto'`                                | **SUPPORTED** no-op on v7                                                          | Automatic selection is Cursor's only mode. AI SDK v7 injects `auto`, so no warning is emitted. The planned v6 branch warns for an explicitly supplied `auto`.                                                                                 |
 | `toolChoice: 'none'`, `'required'`, or a named tool | **UNSUPPORTED-WARN**                                                               | Ignored with feature `toolChoice`.                                                                                                                                                                                                            |
 | Cursor built-in/MCP/custom/subagent tool visibility | **SUPPORTED**                                                                      | Emits dynamic `tool-input-start/delta/end`, `tool-call`, and `tool-result` parts. `providerExecuted: true` is set on `tool-input-start` and `tool-call`, where V4 defines it. Inputs/results are redacted.                                    |
 | Tool input incremental deltas                       | **EMULATED**                                                                       | Default: one JSON delta from the completed input snapshot. Experimental mode emits one snapshot at tool start. `partial-tool-call` is not treated as a true delta.                                                                            |

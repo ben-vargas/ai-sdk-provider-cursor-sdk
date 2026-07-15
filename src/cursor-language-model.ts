@@ -1,10 +1,10 @@
 import type {
-  LanguageModelV4,
-  LanguageModelV4CallOptions,
-  LanguageModelV4GenerateResult,
-  LanguageModelV4StreamPart,
-  LanguageModelV4StreamResult,
-  SharedV4Warning,
+  LanguageModelV3,
+  LanguageModelV3CallOptions,
+  LanguageModelV3GenerateResult,
+  LanguageModelV3StreamPart,
+  LanguageModelV3StreamResult,
+  SharedV3Warning,
 } from '@ai-sdk/provider';
 import { loadApiKey } from '@ai-sdk/provider-utils';
 import {
@@ -18,7 +18,7 @@ import { CursorAgentManager, type CursorAgentCallScope } from './cursor-agent-ma
 import { convertToCursorMessage } from './convert-to-cursor-message.js';
 import { mapCursorError, type CursorErrorContext } from './errors.js';
 import { getLogger, type Logger } from './logger.js';
-import { CursorV4StreamEmitter } from './map-v4-events.js';
+import { CursorV3StreamEmitter } from './map-v3-events.js';
 import { reduceCursorStream } from './reduce-stream.js';
 import type { CursorProviderOptions, CursorSettings } from './settings.js';
 import type { CursorModelId } from './types.js';
@@ -144,8 +144,8 @@ function waitForRun(run: Run, signal: AbortSignal): ReturnType<Run['wait']> {
   return raceWithAbort(run.wait(), signal);
 }
 
-export class CursorLanguageModel implements LanguageModelV4 {
-  readonly specificationVersion = 'v4' as const;
+export class CursorLanguageModel implements LanguageModelV3 {
+  readonly specificationVersion = 'v3' as const;
   readonly provider = 'cursor-sdk';
   readonly supportedUrls = { 'image/*': [/^https?:\/\/.+$/] };
   readonly modelId: string;
@@ -165,12 +165,12 @@ export class CursorLanguageModel implements LanguageModelV4 {
     );
   }
 
-  async doGenerate(options: LanguageModelV4CallOptions): Promise<LanguageModelV4GenerateResult> {
+  async doGenerate(options: LanguageModelV3CallOptions): Promise<LanguageModelV3GenerateResult> {
     const { stream } = await this.doStream(options);
     return reduceCursorStream(stream);
   }
 
-  async doStream(options: LanguageModelV4CallOptions): Promise<LanguageModelV4StreamResult> {
+  async doStream(options: LanguageModelV3CallOptions): Promise<LanguageModelV3StreamResult> {
     const callOptions = this.callOptions(options);
     const warnings = generateAllWarnings(options, this.settings);
     const converted = convertToCursorMessage(options.prompt, {
@@ -224,9 +224,9 @@ export class CursorLanguageModel implements LanguageModelV4 {
     if (options.abortSignal?.aborted) forwardAbort();
     else options.abortSignal?.addEventListener('abort', forwardAbort, { once: true });
 
-    const stream = new ReadableStream<LanguageModelV4StreamPart>({
+    const stream = new ReadableStream<LanguageModelV3StreamPart>({
       start: (controller) => {
-        const emitter = new CursorV4StreamEmitter(
+        const emitter = new CursorV3StreamEmitter(
           controller,
           Boolean(options.includeRawChunks),
           Boolean(this.settings.experimentalPreliminaryToolResults),
@@ -267,7 +267,7 @@ export class CursorLanguageModel implements LanguageModelV4 {
     return { stream };
   }
 
-  private callOptions(options: LanguageModelV4CallOptions): CursorProviderOptions {
+  private callOptions(options: LanguageModelV3CallOptions): CursorProviderOptions {
     return parseCursorProviderOptions(options.providerOptions?.cursor);
   }
 
@@ -276,7 +276,7 @@ export class CursorLanguageModel implements LanguageModelV4 {
     callOptions: CursorProviderOptions;
     convertedMessage: Parameters<CursorAgentCallScope['agent']['send']>[0];
     signal: AbortSignal;
-    emitter: CursorV4StreamEmitter;
+    emitter: CursorV3StreamEmitter;
     context: CursorErrorContext;
   }): Promise<void> {
     const queue = new AsyncDeltaQueue();
@@ -347,7 +347,7 @@ export class CursorLanguageModel implements LanguageModelV4 {
     }
   }
 
-  private async drainDeltas(queue: AsyncDeltaQueue, emitter: CursorV4StreamEmitter): Promise<void> {
+  private async drainDeltas(queue: AsyncDeltaQueue, emitter: CursorV3StreamEmitter): Promise<void> {
     while (true) {
       const entry = await queue.take();
       if (!entry) return;
@@ -376,7 +376,7 @@ export class CursorLanguageModel implements LanguageModelV4 {
     }
   }
 
-  private logCompatibilityWarning(warning: SharedV4Warning): void {
+  private logCompatibilityWarning(warning: SharedV3Warning): void {
     if (warning.type === 'compatibility') {
       this.logger.warn(warning.details ?? warning.feature);
     }
