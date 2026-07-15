@@ -1,40 +1,53 @@
+/**
+ * Demonstrates native multi-turn continuity by reusing one Cursor model instance.
+ * Use fresh single-user prompts on the same model instead of replaying an AI SDK transcript.
+ *
+ * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides composer-2.5.
+ */
+import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { generateText } from 'ai';
 import { createCursor } from '../src/index.js';
 
-const apiKey = process.env.CURSOR_API_KEY;
-if (!apiKey) {
-  console.error('Set CURSOR_API_KEY before running this example.');
-  process.exitCode = 1;
-} else {
-  const provider = createCursor({ apiKey, logger: false });
-  const messages = [
-    { role: 'user' as const, content: 'My project codename is Juniper.' },
-    { role: 'assistant' as const, content: 'Understood.' },
-    { role: 'user' as const, content: 'What codename appeared in this transcript?' },
-  ];
-  try {
-    const ignored = await generateText({
-      model: provider(process.env.CURSOR_MODEL ?? 'auto', {
-        mode: 'plan',
-        createNewAgentPerCall: true,
-        promptHistoryMode: 'ignore',
-      }),
-      messages,
-    });
-    console.log('ignore:', ignored.text);
-    console.log('ignore warnings:', ignored.warnings);
+async function main(): Promise<void> {
+  const apiKey = process.env.CURSOR_API_KEY;
+  if (!apiKey) {
+    console.log('Skipping conversation example: set CURSOR_API_KEY to run it.');
+    return;
+  }
 
-    const flattened = await generateText({
-      model: provider(process.env.CURSOR_MODEL ?? 'auto', {
-        mode: 'plan',
-        createNewAgentPerCall: true,
-        promptHistoryMode: 'flatten',
-      }),
-      messages,
+  const workspace = mkdtempSync(join(tmpdir(), 'cursor-conversation-example-'));
+  const provider = createCursor({ apiKey, logger: false });
+  try {
+    const model = provider(process.env.CURSOR_MODEL ?? 'composer-2.5', {
+      mode: 'plan',
+      local: { cwd: workspace },
     });
-    console.log('flatten:', flattened.text);
-    console.log('flatten warnings:', flattened.warnings);
+
+    const first = await generateText({
+      model,
+      prompt: 'Remember that the release codename is violet harbor. Confirm briefly.',
+    });
+    const second = await generateText({
+      model,
+      prompt: 'What release codename did I give you? Reply with only the codename.',
+    });
+
+    const firstAgentId = first.providerMetadata?.cursor?.agentId;
+    const secondAgentId = second.providerMetadata?.cursor?.agentId;
+    assert.equal(typeof firstAgentId, 'string');
+    assert.equal(secondAgentId, firstAgentId, 'The same model instance should reuse its agent.');
+    assert.match(second.text, /violet harbor/i, 'The second turn should retain native context.');
+
+    console.log('First turn:', first.text);
+    console.log('Second turn:', second.text);
+    console.log('Stable agentId:', secondAgentId);
   } finally {
     await provider.close();
+    rmSync(workspace, { recursive: true, force: true });
   }
 }
+
+await main();

@@ -1,48 +1,97 @@
-import type { LanguageModelV3FunctionTool } from '@ai-sdk/provider';
+/**
+ * Demonstrates practical AI SDK compatibility warnings through public generateText calls.
+ * Use this when migrating an integration that depends on sampling controls, system/history
+ * policies, application tools, or schema-constrained output.
+ *
+ * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides composer-2.5.
+ */
+import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { Output, generateText, tool } from 'ai';
+import { z } from 'zod';
 import { createCursor } from '../src/index.js';
 
-const apiKey = process.env.CURSOR_API_KEY;
-if (!apiKey) {
-  console.error('Set CURSOR_API_KEY before running this example.');
-  process.exitCode = 1;
-} else {
+function printWarnings(feature: string, warnings: unknown): void {
+  console.log(`\n${feature} warnings:`);
+  console.dir(warnings, { depth: null });
+}
+
+async function main(): Promise<void> {
+  const apiKey = process.env.CURSOR_API_KEY;
+  if (!apiKey) {
+    console.log('Skipping limitations example: set CURSOR_API_KEY to run it.');
+    return;
+  }
+
+  const workspace = mkdtempSync(join(tmpdir(), 'cursor-limitations-example-'));
   const provider = createCursor({ apiKey, logger: false });
-  const tool: LanguageModelV3FunctionTool = {
-    type: 'function',
-    name: 'application_tool',
-    inputSchema: { type: 'object', properties: {} },
-  };
-  try {
-    const result = await provider(process.env.CURSOR_MODEL ?? 'auto', {
+  const modelId = process.env.CURSOR_MODEL ?? 'composer-2.5';
+  const freshModel = (settings = {}) =>
+    provider(modelId, {
       mode: 'plan',
       createNewAgentPerCall: true,
-      promptHistoryMode: 'flatten',
-      systemMessageMode: 'prefix',
-    }).doGenerate({
-      prompt: [
-        { role: 'system', content: 'This becomes a lossy text prefix.' },
-        { role: 'user', content: [{ type: 'text', text: 'Earlier turn.' }] },
-        { role: 'assistant', content: [{ type: 'text', text: 'Earlier answer.' }] },
-        { role: 'user', content: [{ type: 'text', text: 'Reply with plain text.' }] },
-      ],
-      temperature: 0.2,
-      topP: 0.9,
-      topK: 20,
-      presencePenalty: 0.1,
-      frequencyPenalty: 0.1,
-      seed: 7,
-      stopSequences: ['STOP'],
-      maxOutputTokens: 32,
-      tools: [tool],
-      toolChoice: { type: 'required' },
-      responseFormat: { type: 'json' },
-      headers: { 'x-example': 'limitations' },
+      local: { cwd: workspace },
+      ...settings,
     });
 
-    console.log('Generated text:', result.content);
-    console.log('Warnings:');
-    console.dir(result.warnings, { depth: null });
+  try {
+    const sampling = await generateText({
+      model: freshModel(),
+      prompt: 'Reply with one short sentence about deterministic testing.',
+      temperature: 0.2,
+      topP: 0.9,
+      seed: 7,
+    });
+    printWarnings('Sampling controls are ignored', sampling.warnings);
+
+    const system = await generateText({
+      model: freshModel({ systemMessageMode: 'prefix' }),
+      system: 'Prefer concise responses.',
+      prompt: 'Explain what happened to the system message.',
+    });
+    printWarnings('System-message prefixing is lossy', system.warnings);
+
+    const history = await generateText({
+      model: freshModel({ promptHistoryMode: 'flatten' }),
+      messages: [
+        { role: 'user', content: 'Earlier question.' },
+        { role: 'assistant', content: 'Earlier answer.' },
+        { role: 'user', content: 'Summarize this transcript in one sentence.' },
+      ],
+    });
+    printWarnings('Flattened transcript history is lossy', history.warnings);
+
+    let applicationToolExecuted = false;
+    const applicationTools = await generateText({
+      model: freshModel(),
+      prompt: 'Reply with the word ready.',
+      tools: {
+        application_status: tool({
+          description: 'Return application status.',
+          inputSchema: z.object({}),
+          execute: async () => {
+            applicationToolExecuted = true;
+            return { status: 'ready' };
+          },
+        }),
+      },
+    });
+    assert.equal(applicationToolExecuted, false);
+    printWarnings('AI SDK application tools are not bridged', applicationTools.warnings);
+
+    const structured = await generateText({
+      model: freshModel(),
+      prompt: 'Return only this JSON object with no markdown: {"status":"ready"}',
+      output: Output.object({ schema: z.object({ status: z.string() }) }),
+    });
+    printWarnings('Structured output is prompt-based, not guaranteed', structured.warnings);
+    console.log('Client-validated output:', structured.output);
   } finally {
     await provider.close();
+    rmSync(workspace, { recursive: true, force: true });
   }
 }
+
+await main();
