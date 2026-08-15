@@ -20,7 +20,7 @@ AI SDK v7 primitives.
 
 | Provider | AI SDK                 | Cursor SDK           | Branch      | npm tag     |
 | -------- | ---------------------- | -------------------- | ----------- | ----------- |
-| `1.x`    | v7 (`LanguageModelV4`) | `@cursor/sdk@1.0.23` | `main`      | `latest`    |
+| `1.x`    | v7 (`LanguageModelV4`) | `@cursor/sdk@1.0.28` | `main`      | `latest`    |
 | `0.x`    | v6 (`LanguageModelV3`) | `@cursor/sdk@1.0.23` | `ai-sdk-v6` | `ai-sdk-v6` |
 
 The `main` branch and `latest` npm tag target AI SDK v7. The `ai-sdk-v6` branch and matching npm
