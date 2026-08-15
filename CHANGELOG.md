@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Parse `npm pack --json` even when Node 22 / npm 10 prints lifecycle (tsup `prepare`) output
+  before the JSON array, so packed-consumer smoke stays green on Node 22 and 24.
+- Key the resumed-agent cache by `agentId` plus `tools` / `disallowedTools` so a later model
+  cannot inherit an unrestricted handle (for example `tools: []` after an unrestricted resume).
+
 ### Changed
 
 - Pinned `@cursor/sdk` from `1.0.23` to `1.0.28` after triaging weekly canary drift.

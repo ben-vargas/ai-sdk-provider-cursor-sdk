@@ -76,10 +76,10 @@ await providerB.close();
 ```
 
 You can also construct a model with `{ agentId }`. Per-call `providerOptions.cursor.agentId` has the
-highest precedence. Resumed handles are cached by ID inside a provider, so later calls on that model
-reuse them. The local resume path receives `tools` / `disallowedTools` and `sdkAgentOptions`, not
-creation-time `settings.local`, which is why the explicit store and `cwd` appear under
-`sdkAgentOptions.local` above.
+highest precedence. Resumed handles are cached by ID and `tools` / `disallowedTools` inside a
+provider, so later calls reuse a handle only when those restrictions match. The local resume path
+receives `tools` / `disallowedTools` and `sdkAgentOptions`, not creation-time `settings.local`,
+which is why the explicit store and `cwd` appear under `sdkAgentOptions.local` above.
 
 Cursor auto-detects runtime from the ID: `bc-...` routes to cloud; other IDs route to the local
 store. Do not present an ID alone as durable local persistence: the validated default-store
