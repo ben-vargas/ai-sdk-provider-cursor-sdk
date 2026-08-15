@@ -71,6 +71,16 @@ function controlledAgent(
     [Symbol.asyncDispose]: vi.fn(async () => undefined),
     listArtifacts: vi.fn(async () => []),
     downloadArtifact: vi.fn(async () => Buffer.alloc(0)),
+    getUsage: vi.fn(async () => ({
+      usage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        totalTokens: 0,
+      },
+      runs: [],
+    })),
   };
 }
 

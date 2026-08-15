@@ -231,30 +231,32 @@ Cloud run metadata may include repository branch and PR information under
 `createCursor({ defaultSettings })` provides defaults for every model. Per-model settings win by
 top-level key; nested objects are shallow-replaced, not deep-merged.
 
-| Setting                              | Type                                | Default          | Behavior                                                          |
-| ------------------------------------ | ----------------------------------- | ---------------- | ----------------------------------------------------------------- |
-| `apiKey`                             | `string`                            | `CURSOR_API_KEY` | Per-model key override                                            |
-| `agentId`                            | `string`                            | —                | Resume an existing local or cloud agent                           |
-| `agent`                              | `SDKAgent`                          | —                | Use a caller-owned agent; never closed by the provider            |
-| `createNewAgentPerCall`              | `boolean`                           | `false`          | Create and close a fresh agent for each call                      |
-| `agentName`                          | `string`                            | SDK-generated    | Dashboard-visible name                                            |
-| `mode`                               | `'agent' \| 'plan'`                 | `'agent'`        | New-agent mode; omitted sends preserve an existing agent's mode   |
-| `local`                              | `LocalAgentOptions`                 | `{}`             | Local runtime options; selected explicitly when `cloud` is absent |
-| `cloud`                              | `CloudAgentOptions`                 | —                | Cloud runtime options                                             |
-| `customTools`                        | `Record<string, SDKCustomTool>`     | —                | Shorthand for local custom tools                                  |
-| `mcpServers`                         | `Record<string, McpServerConfig>`   | —                | Creation/resume-time inline MCP servers                           |
-| `agents`                             | `Record<string, AgentDefinition>`   | —                | Inline Cursor subagents                                           |
-| `promptHistoryMode`                  | `'reject' \| 'ignore' \| 'flatten'` | `'reject'`       | Arbitrary-history policy                                          |
-| `systemMessageMode`                  | `'reject' \| 'ignore' \| 'prefix'`  | `'reject'`       | System-message policy                                             |
-| `modelParams`                        | `{ id: string; value: string }[]`   | —                | Cursor model parameters                                           |
-| `experimentalPreliminaryToolResults` | `boolean`                           | `false`          | Opt in to early, snapshot-based tool visibility                   |
-| `sdkAgentOptions`                    | `Partial<AgentOptions>`             | —                | Creation/resume escape hatch; managed keys are rejected           |
-| `idempotencyKey`                     | `string`                            | —                | Default send-level idempotency key                                |
-| `logger`                             | `Logger \| false`                   | console-backed   | Model diagnostics or disabled logging                             |
-| `verbose`                            | `boolean`                           | `false`          | Enable debug/info diagnostics                                     |
-| `onDeltaEvent`                       | callback                            | —                | Observe each raw Cursor delta before normalization                |
-| `onRunCreated`                       | callback                            | —                | Receive the live `Run` handle                                     |
-| `onRunResult`                        | callback                            | —                | Receive the terminal `RunResult`                                  |
+| Setting                              | Type                                | Default          | Behavior                                                                      |
+| ------------------------------------ | ----------------------------------- | ---------------- | ----------------------------------------------------------------------------- |
+| `apiKey`                             | `string`                            | `CURSOR_API_KEY` | Per-model key override                                                        |
+| `agentId`                            | `string`                            | —                | Resume an existing local or cloud agent                                       |
+| `agent`                              | `SDKAgent`                          | —                | Use a caller-owned agent; never closed by the provider                        |
+| `createNewAgentPerCall`              | `boolean`                           | `false`          | Create and close a fresh agent for each call                                  |
+| `agentName`                          | `string`                            | SDK-generated    | Dashboard-visible name                                                        |
+| `mode`                               | `'agent' \| 'plan'`                 | `'agent'`        | New-agent mode; omitted sends preserve an existing agent's mode               |
+| `local`                              | `LocalAgentOptions`                 | `{}`             | Local runtime; `dirs` for extra roots; `cwd` arrays migrate to `cwd` + `dirs` |
+| `cloud`                              | `CloudAgentOptions`                 | —                | Cloud runtime, including `metadata` and `openAsCursorGithubApp`               |
+| `tools`                              | `ToolName[]`                        | —                | Local built-in tool allow-list; re-passed on resume                           |
+| `disallowedTools`                    | `ToolName[]`                        | —                | Local built-in tool deny-list; re-passed on resume                            |
+| `customTools`                        | `Record<string, SDKCustomTool>`     | —                | Shorthand for local custom tools                                              |
+| `mcpServers`                         | `Record<string, McpServerConfig>`   | —                | Creation/resume-time inline MCP servers                                       |
+| `agents`                             | `Record<string, AgentDefinition>`   | —                | Inline Cursor subagents                                                       |
+| `promptHistoryMode`                  | `'reject' \| 'ignore' \| 'flatten'` | `'reject'`       | Arbitrary-history policy                                                      |
+| `systemMessageMode`                  | `'reject' \| 'ignore' \| 'prefix'`  | `'reject'`       | System-message policy                                                         |
+| `modelParams`                        | `{ id: string; value: string }[]`   | —                | Cursor model parameters                                                       |
+| `experimentalPreliminaryToolResults` | `boolean`                           | `false`          | Opt in to early, snapshot-based tool visibility                               |
+| `sdkAgentOptions`                    | `Partial<AgentOptions>`             | —                | Creation/resume escape hatch; managed keys are rejected                       |
+| `idempotencyKey`                     | `string`                            | —                | Default send-level idempotency key                                            |
+| `logger`                             | `Logger \| false`                   | console-backed   | Model diagnostics or disabled logging                                         |
+| `verbose`                            | `boolean`                           | `false`          | Enable debug/info diagnostics                                                 |
+| `onDeltaEvent`                       | callback                            | —                | Observe each raw Cursor delta before normalization                            |
+| `onRunCreated`                       | callback                            | —                | Receive the live `Run` handle                                                 |
+| `onRunResult`                        | callback                            | —                | Receive the terminal `RunResult`                                              |
 
 The `sdkAgentOptions` keys `model`, `apiKey`, `agentId`, and creation-time `idempotencyKey` are
 provider-managed and rejected. See the full [configuration reference](docs/configuration.md).

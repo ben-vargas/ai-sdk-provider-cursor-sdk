@@ -259,6 +259,120 @@ describe('normalizeCursorUpdate', () => {
     }
   });
 
+  it('recurses tool-call-delta taskUpdate so nested subagent text and tools are visible', () => {
+    const normalizer = new CursorEventNormalizer(false);
+    const textEvents = normalizeCursorUpdate(normalizer, {
+      type: 'tool-call-delta',
+      callId: 'call-task',
+      modelCallId: 'model-call-task',
+      taskUpdate: { type: 'text-delta', text: 'subagent' },
+    });
+    expect(textEvents.filter((event) => event.kind !== 'raw')).toEqual([
+      { kind: 'text-start', id: 'txt-1' },
+      { kind: 'text-delta', id: 'txt-1', delta: 'subagent' },
+    ]);
+
+    const started = normalizeCursorUpdate(normalizer, {
+      type: 'tool-call-delta',
+      callId: 'call-task',
+      modelCallId: 'model-call-task',
+      taskUpdate: {
+        type: 'tool-call-started',
+        callId: 'call-nested-read',
+        modelCallId: 'model-call-nested-read',
+        toolCall: { type: 'read', args: { path: 'README.md' } },
+      },
+    });
+    expect(started.filter((event) => event.kind !== 'raw')).toEqual([
+      { kind: 'text-end', id: 'txt-1' },
+      {
+        kind: 'tool-input-start',
+        toolCallId: 'call-nested-read',
+        toolName: 'read',
+        metadata: { modelCallId: 'model-call-nested-read' },
+      },
+    ]);
+
+    const completed = normalizeCursorUpdate(normalizer, {
+      type: 'tool-call-delta',
+      callId: 'call-task',
+      modelCallId: 'model-call-task',
+      taskUpdate: {
+        type: 'tool-call-completed',
+        callId: 'call-nested-read',
+        modelCallId: 'model-call-nested-read',
+        toolCall: {
+          type: 'read',
+          args: { path: 'README.md' },
+          result: { status: 'success', value: { content: 'ok' } },
+        },
+      },
+    });
+    expect(completed.filter((event) => event.kind !== 'raw')).toEqual([
+      {
+        kind: 'tool-call',
+        toolCallId: 'call-nested-read',
+        toolName: 'read',
+        input: { path: 'README.md' },
+        metadata: { modelCallId: 'model-call-nested-read' },
+      },
+      {
+        kind: 'tool-result',
+        toolCallId: 'call-nested-read',
+        toolName: 'read',
+        result: { status: 'success', value: { content: 'ok' } },
+        preliminary: false,
+        isError: false,
+        metadata: { modelCallId: 'model-call-nested-read' },
+      },
+    ]);
+  });
+
+  it('inherits the parent modelCallId when a nested tool update omits it', () => {
+    const events = normalizeCursorUpdate(new CursorEventNormalizer(false), {
+      type: 'tool-call-delta',
+      callId: 'call-task',
+      modelCallId: 'model-call-task',
+      taskUpdate: {
+        type: 'tool-call-started',
+        callId: 'call-nested-shell',
+        toolCall: { type: 'shell', args: { command: 'pwd' } },
+      },
+    });
+    expect(events.find((event) => event.kind === 'tool-input-start')).toMatchObject({
+      toolCallId: 'call-nested-shell',
+      metadata: { modelCallId: 'model-call-task' },
+    });
+  });
+
+  it('fails closed on a tool-call-delta without a taskUpdate object', () => {
+    expect(() =>
+      normalizeCursorUpdate(new CursorEventNormalizer(false), {
+        type: 'tool-call-delta',
+        callId: 'call-task',
+        modelCallId: 'model-call-task',
+      })
+    ).toThrow(/taskUpdate.*object/);
+  });
+
+  it('does not throw on tool-call-delta and drops deeper nested tool-call-delta', () => {
+    const events = normalizeCursorUpdate(new CursorEventNormalizer(false), {
+      type: 'tool-call-delta',
+      callId: 'call-task',
+      modelCallId: 'model-call-task',
+      taskUpdate: {
+        type: 'tool-call-delta',
+        callId: 'call-deeper',
+        modelCallId: 'model-call-deeper',
+        taskUpdate: { type: 'text-delta', text: 'dropped' },
+      },
+    });
+    expect(events.filter((event) => event.kind !== 'raw')).toEqual([]);
+    expect(events).toEqual(
+      expect.arrayContaining([expect.objectContaining({ kind: 'raw', conditional: true })])
+    );
+  });
+
   it('preserves harmless unknowns as raw and deduplicates warnings by type', () => {
     const [first, second] = normalizeFixture('unknown-safe-event');
     expect(first).toEqual([

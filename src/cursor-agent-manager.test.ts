@@ -46,8 +46,10 @@ describe('CursorAgentManager acquisition and ownership', () => {
         settings: {
           agentName: 'Provider agent',
           mode: 'plan',
-          local: { cwd: '/repo', autoReview: true },
+          local: { cwd: '/repo', dirs: ['/extra'], autoReview: true },
           customTools: { custom: customTool },
+          tools: ['shell', 'read'],
+          disallowedTools: ['delete'],
           mcpServers: { docs: { command: 'node', args: ['server.mjs'] } },
           agents: { reviewer: { description: 'review', prompt: 'Review' } },
           modelParams: [{ id: 'fast', value: 'false' }],
@@ -65,10 +67,66 @@ describe('CursorAgentManager acquisition and ownership', () => {
       apiKey: 'cursor-key',
       name: 'Provider agent',
       mode: 'agent',
-      local: { cwd: '/repo', autoReview: true, customTools: { custom: customTool } },
+      local: {
+        cwd: '/repo',
+        dirs: ['/extra'],
+        autoReview: true,
+        customTools: { custom: customTool },
+      },
+      tools: ['shell', 'read'],
+      disallowedTools: ['delete'],
       mcpServers: { docs: { command: 'node', args: ['server.mjs'] } },
       agents: { reviewer: { description: 'review', prompt: 'Review' } },
     });
+  });
+
+  it('migrates a legacy cwd array to cwd + dirs before calling the SDK', async () => {
+    mockAgentCreate.mockResolvedValue(fakeAgent());
+    const manager = new CursorAgentManager(noopLogger);
+    await manager.acquire(
+      acquireOptions({
+        settings: { local: { cwd: ['/repo', '/other'], dirs: ['/extra'] } },
+      })
+    );
+    expect(mockAgentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        local: { cwd: '/repo', dirs: ['/extra', '/other'] },
+      })
+    );
+    const passed = mockAgentCreate.mock.calls[0]?.[0] as { local?: { cwd?: unknown } };
+    expect(Array.isArray(passed.local?.cwd)).toBe(false);
+  });
+
+  it('passes an empty tools allow-list through to Agent.create', async () => {
+    mockAgentCreate.mockResolvedValue(fakeAgent());
+    const manager = new CursorAgentManager(noopLogger);
+    await manager.acquire(acquireOptions({ settings: { tools: [] } }));
+    expect(mockAgentCreate.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ tools: [] }));
+  });
+
+  it('forwards cloud metadata and openAsCursorGithubApp', async () => {
+    mockAgentCreate.mockResolvedValue(fakeAgent('bc-cloud'));
+    const manager = new CursorAgentManager(noopLogger);
+    await manager.acquire(
+      acquireOptions({
+        settings: {
+          cloud: {
+            repos: [{ url: 'https://example.test/repo' }],
+            metadata: { team: 'platform' },
+            openAsCursorGithubApp: true,
+          },
+        },
+      })
+    );
+    expect(mockAgentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cloud: {
+          repos: [{ url: 'https://example.test/repo' }],
+          metadata: { team: 'platform' },
+          openAsCursorGithubApp: true,
+        },
+      })
+    );
   });
 
   it('passes explicit local empty options when no runtime is configured', async () => {
@@ -103,6 +161,8 @@ describe('CursorAgentManager acquisition and ownership', () => {
           agentId: 'agent-settings',
           mcpServers: { docs: { command: 'docs' } },
           agents: { reviewer: { description: 'review', prompt: 'Review' } },
+          tools: [],
+          disallowedTools: ['mcp'],
           sdkAgentOptions: { name: 'resume name' },
         },
         callOptions: { agentId: 'agent-call' },
@@ -113,6 +173,8 @@ describe('CursorAgentManager acquisition and ownership', () => {
       apiKey: 'cursor-key',
       mcpServers: { docs: { command: 'docs' } },
       agents: { reviewer: { description: 'review', prompt: 'Review' } },
+      tools: [],
+      disallowedTools: ['mcp'],
       name: 'resume name',
     });
     expect(mockAgentCreate).not.toHaveBeenCalled();

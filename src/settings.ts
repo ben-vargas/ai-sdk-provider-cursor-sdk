@@ -10,10 +10,20 @@ import type {
   RunResult,
   SDKAgent,
   SDKCustomTool,
+  ToolName,
 } from '@cursor/sdk';
 import { z } from 'zod';
 import type { Logger } from './logger.js';
 import type { CursorPromptHistoryMode, CursorSystemMessageMode } from './types.js';
+
+/**
+ * Provider-facing local options. `@cursor/sdk` 1.0.24+ types `cwd` as a single
+ * string and adds `dirs` for extra workspace roots. Arrays remain accepted here
+ * for back-compat and are migrated to `cwd` + `dirs` at the SDK call edge.
+ */
+export type CursorLocalSettings = Omit<LocalAgentOptions, 'cwd'> & {
+  cwd?: string | string[];
+};
 
 export interface CursorSettings {
   apiKey?: string;
@@ -22,7 +32,9 @@ export interface CursorSettings {
   createNewAgentPerCall?: boolean;
   agentName?: string;
   mode?: 'agent' | 'plan';
-  local?: LocalAgentOptions;
+  tools?: ToolName[];
+  disallowedTools?: ToolName[];
+  local?: CursorLocalSettings;
   cloud?: CloudAgentOptions;
   customTools?: Record<string, SDKCustomTool>;
   mcpServers?: Record<string, McpServerConfig>;
@@ -121,9 +133,13 @@ const agentDefinitionSchema = z
   })
   .strict();
 
+const toolNameSchema = z.custom<ToolName>((value) => typeof value === 'string');
+const toolNamesSchema = z.array(toolNameSchema);
+
 const localOptionsSchema = z
   .object({
     cwd: z.union([z.string(), z.array(z.string())]).optional(),
+    dirs: z.array(z.string()).optional(),
     autoReview: z.boolean().optional(),
     store: z.custom<NonNullable<LocalAgentOptions['store']>>().optional(),
     settingSources: z
@@ -157,8 +173,10 @@ const cloudOptionsSchema = z
       .optional(),
     workOnCurrentBranch: z.boolean().optional(),
     autoCreatePR: z.boolean().optional(),
+    openAsCursorGithubApp: z.boolean().optional(),
     skipReviewerRequest: z.boolean().optional(),
     envVars: z.record(z.string(), z.string()).optional(),
+    metadata: z.record(z.string(), z.string()).optional(),
   })
   .strict();
 
@@ -172,6 +190,8 @@ export const cursorSettingsSchema: z.ZodType<CursorSettings> = z
     createNewAgentPerCall: z.boolean().optional(),
     agentName: z.string().optional(),
     mode: z.enum(['agent', 'plan']).optional(),
+    tools: toolNamesSchema.optional(),
+    disallowedTools: toolNamesSchema.optional(),
     local: localOptionsSchema.optional(),
     cloud: cloudOptionsSchema.optional(),
     customTools: customToolsSchema.optional(),
@@ -216,6 +236,15 @@ export const cursorSettingsSchema: z.ZodType<CursorSettings> = z
       context.addIssue({
         code: 'custom',
         message: 'customTools are supported only by local Cursor agents',
+      });
+    }
+    if (
+      settings.cloud &&
+      (settings.tools !== undefined || settings.disallowedTools !== undefined)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'tools and disallowedTools are supported only by local Cursor agents',
       });
     }
     const sdkAgentOptions = settings.sdkAgentOptions as Record<string, unknown> | undefined;

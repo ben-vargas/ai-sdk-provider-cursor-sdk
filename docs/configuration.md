@@ -93,39 +93,57 @@ current mode.
 
 Local runtime options:
 
-| Field                | Type                                                               | Notes                                                                |
-| -------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------- |
-| `cwd`                | `string \| string[]`                                               | Workspace path(s). Cursor defaults to its SDK behavior when omitted. |
-| `autoReview`         | `boolean`                                                          | Opt into Cursor's local classifier-backed Auto-review behavior.      |
-| `store`              | `LocalAgentStore`                                                  | Custom persistence backend.                                          |
-| `settingSources`     | `('project' \| 'user' \| 'team' \| 'mdm' \| 'plugins' \| 'all')[]` | Ambient Cursor settings layers.                                      |
-| `sandboxOptions`     | `{ enabled: boolean }`                                             | Enable Cursor's local sandbox.                                       |
-| `customTools`        | `Record<string, SDKCustomTool>`                                    | Local in-process tools registered through Cursor.                    |
-| `enableAgentRetries` | `boolean`                                                          | Cursor transport/stall retry policy.                                 |
+| Field                | Type                                                               | Notes                                                                                                                                                                           |
+| -------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cwd`                | `string \| string[]`                                               | Primary workspace path. A `string[]` is still accepted for back-compat with `@cursor/sdk` ≤ 1.0.23 and is migrated to `cwd: arr[0]` plus extra `dirs` before the SDK is called. |
+| `dirs`               | `string[]`                                                         | Additional workspace roots (`@cursor/sdk` 1.0.27+). Merged after a migrated `cwd` array's extra entries. `cwd` remains the primary working directory and local store scope.     |
+| `autoReview`         | `boolean`                                                          | Opt into Cursor's local classifier-backed Auto-review behavior.                                                                                                                 |
+| `store`              | `LocalAgentStore`                                                  | Custom persistence backend.                                                                                                                                                     |
+| `settingSources`     | `('project' \| 'user' \| 'team' \| 'mdm' \| 'plugins' \| 'all')[]` | Ambient Cursor settings layers.                                                                                                                                                 |
+| `sandboxOptions`     | `{ enabled: boolean }`                                             | Enable Cursor's local sandbox.                                                                                                                                                  |
+| `customTools`        | `Record<string, SDKCustomTool>`                                    | Local in-process tools registered through Cursor.                                                                                                                               |
+| `enableAgentRetries` | `boolean`                                                          | Cursor transport/stall retry policy.                                                                                                                                            |
 
 When both `local` and `cloud` are absent, the provider explicitly creates with `local: {}` rather
 than relying on undocumented omit-both behavior.
 
 `settings.local` is applied when creating an agent. On explicit `agentId` resume, the implementation
-passes auth, MCP servers, subagents, and `sdkAgentOptions`; provide advanced resume-only local routing
-such as a custom store through `sdkAgentOptions.local`.
+passes auth, MCP servers, subagents, `tools` / `disallowedTools`, and `sdkAgentOptions`; provide
+advanced resume-only local routing such as a custom store through `sdkAgentOptions.local`.
 
 #### `cloud?: CloudAgentOptions`
 
 Cloud runtime options:
 
-| Field                 | Type                                                      | Notes                                                     |
-| --------------------- | --------------------------------------------------------- | --------------------------------------------------------- |
-| `env`                 | `{ type: 'cloud' \| 'pool' \| 'machine'; name?: string }` | Cursor-hosted, self-hosted pool, or named machine target. |
-| `repos`               | `{ url: string; startingRef?: string; prUrl?: string }[]` | Repositories/refs for the VM.                             |
-| `workOnCurrentBranch` | `boolean`                                                 | Work on the existing branch.                              |
-| `autoCreatePR`        | `boolean`                                                 | Ask Cursor to open a PR after the run.                    |
-| `skipReviewerRequest` | `boolean`                                                 | Do not request the caller as reviewer.                    |
-| `envVars`             | `Record<string, string>`                                  | Agent-scoped cloud environment variables.                 |
+| Field                   | Type                                                      | Notes                                                                                   |
+| ----------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `env`                   | `{ type: 'cloud' \| 'pool' \| 'machine'; name?: string }` | Cursor-hosted, self-hosted pool, or named machine target.                               |
+| `repos`                 | `{ url: string; startingRef?: string; prUrl?: string }[]` | Repositories/refs for the VM.                                                           |
+| `workOnCurrentBranch`   | `boolean`                                                 | Work on the existing branch.                                                            |
+| `autoCreatePR`          | `boolean`                                                 | Ask Cursor to open a PR after the run.                                                  |
+| `openAsCursorGithubApp` | `boolean`                                                 | Open PRs as the Cursor GitHub App instead of the API-key owner (`@cursor/sdk` 1.0.27+). |
+| `skipReviewerRequest`   | `boolean`                                                 | Do not request the caller as reviewer.                                                  |
+| `envVars`               | `Record<string, string>`                                  | Agent-scoped cloud environment variables.                                               |
+| `metadata`              | `Record<string, string>`                                  | Caller-owned tags persisted on the cloud agent (`@cursor/sdk` 1.0.25+).                 |
 
-`local` and `cloud` are mutually exclusive. Local custom tools combined with `cloud` fail validation.
+`local` and `cloud` are mutually exclusive. Local custom tools, `tools`, or `disallowedTools`
+combined with `cloud` fail validation.
 
 ### Cursor tools and configuration
+
+#### `tools?: ToolName[]` / `disallowedTools?: ToolName[]`
+
+First-class `AgentOptions.tools` / `AgentOptions.disallowedTools` (`@cursor/sdk` 1.0.27+). Passed on
+both `Agent.create` and `Agent.resume` because Cursor does not persist the restriction. Local agents
+only; combining either key with `cloud` fails validation (same as `customTools`).
+
+- `undefined` — the model's standard built-in toolset
+- `tools: []` — no built-in tools; the model can only respond with text
+- Non-empty `tools` — only the listed tools are offered
+- `disallowedTools` — deny-list; deny wins when both are set
+
+Names use Cursor's public tool vocabulary (`shell`, `read`, `edit`, `mcp`, `task`, …). Unknown names
+are rejected by the SDK at create/resume, not by this provider.
 
 #### `customTools?: Record<string, SDKCustomTool>`
 
@@ -321,6 +339,7 @@ Message- and content-part-level provider options are not interpreted.
 - More than one of `agentId`, `agent`, and `createNewAgentPerCall: true`
 - Both `local` and `cloud`
 - `cloud` with `customTools` or `local.customTools`
+- `cloud` with `tools` or `disallowedTools`
 - Blank `agentId`
 - Managed keys inside `sdkAgentOptions`
 - Unknown keys or invalid nested shapes

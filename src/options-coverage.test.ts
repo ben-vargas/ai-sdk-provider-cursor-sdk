@@ -16,7 +16,9 @@ type AgentMappedKey =
   | 'cloud'
   | 'mcpServers'
   | 'agents'
-  | 'mode';
+  | 'mode'
+  | 'tools'
+  | 'disallowedTools';
 type AgentProviderManagedKey = 'agentId' | 'idempotencyKey';
 type AgentKnownExcludedKey = never;
 type AgentAccountedKey = AgentMappedKey | AgentProviderManagedKey | AgentKnownExcludedKey;
@@ -32,6 +34,7 @@ type CloudSendKnownExcludedKey = 'envVars';
 
 type LocalAgentMappedKey =
   | 'cwd'
+  | 'dirs'
   | 'autoReview'
   | 'store'
   | 'settingSources'
@@ -43,8 +46,10 @@ type CloudAgentMappedKey =
   | 'repos'
   | 'workOnCurrentBranch'
   | 'autoCreatePR'
+  | 'openAsCursorGithubApp'
   | 'skipReviewerRequest'
-  | 'envVars';
+  | 'envVars'
+  | 'metadata';
 
 type InteractionMappedType =
   | 'text-delta'
@@ -61,7 +66,8 @@ type InteractionMappedType =
   | 'summary'
   | 'summary-started'
   | 'summary-completed'
-  | 'user-message-appended';
+  | 'user-message-appended'
+  | 'tool-call-delta';
 
 type UnaccountedAgentKey = Exclude<keyof AgentOptions, AgentAccountedKey>;
 type StaleAgentKey = Exclude<AgentAccountedKey, keyof AgentOptions>;
