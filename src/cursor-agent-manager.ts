@@ -17,7 +17,9 @@ export function toSdkLocalOptions(local: CursorLocalSettings): LocalAgentOptions
     };
   }
   const [primary, ...additional] = cwd;
-  const mergedDirs = [...(dirs ?? []), ...additional];
+  // Documented order (docs/configuration.md): the legacy array's extra entries stay adjacent to
+  // their `cwd`, and explicit `dirs` merge after them.
+  const mergedDirs = [...additional, ...(dirs ?? [])];
   return {
     ...rest,
     ...(primary !== undefined ? { cwd: primary } : {}),

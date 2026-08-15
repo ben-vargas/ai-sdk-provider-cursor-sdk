@@ -90,7 +90,8 @@ describe('CursorAgentManager acquisition and ownership', () => {
     );
     expect(mockAgentCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        local: { cwd: '/repo', dirs: ['/extra', '/other'] },
+        // Documented precedence: migrated `cwd` array extras first, explicit `dirs` after them.
+        local: { cwd: '/repo', dirs: ['/other', '/extra'] },
       })
     );
     const passed = mockAgentCreate.mock.calls[0]?.[0] as { local?: { cwd?: unknown } };

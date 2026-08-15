@@ -5,6 +5,7 @@ import type {
   InteractionUpdate,
   LocalAgentOptions,
   LocalSendOptions,
+  NestedTaskUpdate,
   SendOptions,
 } from '@cursor/sdk';
 
@@ -69,6 +70,18 @@ type InteractionMappedType =
   | 'user-message-appended'
   | 'tool-call-delta';
 
+// `tool-call-delta.taskUpdate` carries its own narrower union, so it drifts independently of
+// `InteractionUpdate['type']`. Every entry below is recursed through the same normalizer switch.
+type NestedTaskMappedType =
+  | 'text-delta'
+  | 'thinking-delta'
+  | 'thinking-completed'
+  | 'tool-call-started'
+  | 'partial-tool-call'
+  | 'tool-call-completed'
+  | 'step-started'
+  | 'step-completed';
+
 type UnaccountedAgentKey = Exclude<keyof AgentOptions, AgentAccountedKey>;
 type StaleAgentKey = Exclude<AgentAccountedKey, keyof AgentOptions>;
 type UnaccountedSendKey = Exclude<keyof SendOptions, SendAccountedKey>;
@@ -89,6 +102,8 @@ type UnaccountedCloudAgentKey = Exclude<keyof CloudAgentOptions, CloudAgentMappe
 type StaleCloudAgentKey = Exclude<CloudAgentMappedKey, keyof CloudAgentOptions>;
 type UnaccountedInteractionType = Exclude<InteractionUpdate['type'], InteractionMappedType>;
 type StaleInteractionType = Exclude<InteractionMappedType, InteractionUpdate['type']>;
+type UnaccountedNestedTaskType = Exclude<NestedTaskUpdate['type'], NestedTaskMappedType>;
+type StaleNestedTaskType = Exclude<NestedTaskMappedType, NestedTaskUpdate['type']>;
 
 // Force assignability in both directions. A newly added or removed SDK key names itself here.
 const noUnaccountedAgentKeys: Record<UnaccountedAgentKey, never> = {};
@@ -105,6 +120,8 @@ const noUnaccountedCloudAgentKeys: Record<UnaccountedCloudAgentKey, never> = {};
 const noStaleCloudAgentKeys: Record<StaleCloudAgentKey, never> = {};
 const noUnaccountedInteractionTypes: Record<UnaccountedInteractionType, never> = {};
 const noStaleInteractionTypes: Record<StaleInteractionType, never> = {};
+const noUnaccountedNestedTaskTypes: Record<UnaccountedNestedTaskType, never> = {};
+const noStaleNestedTaskTypes: Record<StaleNestedTaskType, never> = {};
 
 describe('Cursor SDK options and events drift guard', () => {
   it('accounts for every SDK key and interaction event type in both directions', () => {
@@ -124,6 +141,8 @@ describe('Cursor SDK options and events drift guard', () => {
         noStaleCloudAgentKeys,
         noUnaccountedInteractionTypes,
         noStaleInteractionTypes,
+        noUnaccountedNestedTaskTypes,
+        noStaleNestedTaskTypes,
       ].flatMap(Object.keys)
     ).toEqual([]);
   });

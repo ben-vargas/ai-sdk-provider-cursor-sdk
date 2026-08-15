@@ -1,8 +1,18 @@
-import type { InteractionUpdate } from '@cursor/sdk';
+import type { InteractionUpdate, ToolCallDeltaUpdate } from '@cursor/sdk';
+import { ToolCallDeltaUpdateSchema } from '@cursor/sdk';
 import { CursorStreamConsistencyError } from './errors.js';
 import { normalizeCursorUpdate } from './normalize-cursor-events.js';
 import { CursorEventNormalizer } from './normalized-events.js';
 import { loadDeltaFixture } from './__tests__/fixtures/fake-cursor-sdk.js';
+
+/**
+ * Statically and at runtime pins a `tool-call-delta` fixture to the published `@cursor/sdk` shape,
+ * so these cases keep proving compatibility with live events rather than with invented ones.
+ */
+function liveToolCallDelta(update: ToolCallDeltaUpdate): ToolCallDeltaUpdate {
+  expect(ToolCallDeltaUpdateSchema.safeParse(update).error).toBeUndefined();
+  return update;
+}
 
 function normalizeFixture(name: string, preliminary = false) {
   const normalizer = new CursorEventNormalizer(preliminary);
@@ -261,28 +271,34 @@ describe('normalizeCursorUpdate', () => {
 
   it('recurses tool-call-delta taskUpdate so nested subagent text and tools are visible', () => {
     const normalizer = new CursorEventNormalizer(false);
-    const textEvents = normalizeCursorUpdate(normalizer, {
-      type: 'tool-call-delta',
-      callId: 'call-task',
-      modelCallId: 'model-call-task',
-      taskUpdate: { type: 'text-delta', text: 'subagent' },
-    });
+    const textEvents = normalizeCursorUpdate(
+      normalizer,
+      liveToolCallDelta({
+        type: 'tool-call-delta',
+        callId: 'call-task',
+        modelCallId: 'model-call-task',
+        taskUpdate: { type: 'text-delta', text: 'subagent' },
+      })
+    );
     expect(textEvents.filter((event) => event.kind !== 'raw')).toEqual([
       { kind: 'text-start', id: 'txt-1' },
       { kind: 'text-delta', id: 'txt-1', delta: 'subagent' },
     ]);
 
-    const started = normalizeCursorUpdate(normalizer, {
-      type: 'tool-call-delta',
-      callId: 'call-task',
-      modelCallId: 'model-call-task',
-      taskUpdate: {
-        type: 'tool-call-started',
-        callId: 'call-nested-read',
-        modelCallId: 'model-call-nested-read',
-        toolCall: { type: 'read', args: { path: 'README.md' } },
-      },
-    });
+    const started = normalizeCursorUpdate(
+      normalizer,
+      liveToolCallDelta({
+        type: 'tool-call-delta',
+        callId: 'call-task',
+        modelCallId: 'model-call-task',
+        taskUpdate: {
+          type: 'tool-call-started',
+          callId: 'call-nested-read',
+          modelCallId: 'model-call-nested-read',
+          toolCall: { type: 'read', args: { path: 'README.md' } },
+        },
+      })
+    );
     expect(started.filter((event) => event.kind !== 'raw')).toEqual([
       { kind: 'text-end', id: 'txt-1' },
       {
@@ -293,21 +309,24 @@ describe('normalizeCursorUpdate', () => {
       },
     ]);
 
-    const completed = normalizeCursorUpdate(normalizer, {
-      type: 'tool-call-delta',
-      callId: 'call-task',
-      modelCallId: 'model-call-task',
-      taskUpdate: {
-        type: 'tool-call-completed',
-        callId: 'call-nested-read',
-        modelCallId: 'model-call-nested-read',
-        toolCall: {
-          type: 'read',
-          args: { path: 'README.md' },
-          result: { status: 'success', value: { content: 'ok' } },
+    const completed = normalizeCursorUpdate(
+      normalizer,
+      liveToolCallDelta({
+        type: 'tool-call-delta',
+        callId: 'call-task',
+        modelCallId: 'model-call-task',
+        taskUpdate: {
+          type: 'tool-call-completed',
+          callId: 'call-nested-read',
+          modelCallId: 'model-call-nested-read',
+          toolCall: {
+            type: 'read',
+            args: { path: 'README.md' },
+            result: { status: 'success', value: { content: 'ok', totalLines: 1, fileSize: 2 } },
+          },
         },
-      },
-    });
+      })
+    );
     expect(completed.filter((event) => event.kind !== 'raw')).toEqual([
       {
         kind: 'tool-call',
@@ -320,7 +339,7 @@ describe('normalizeCursorUpdate', () => {
         kind: 'tool-result',
         toolCallId: 'call-nested-read',
         toolName: 'read',
-        result: { status: 'success', value: { content: 'ok' } },
+        result: { status: 'success', value: { content: 'ok', totalLines: 1, fileSize: 2 } },
         preliminary: false,
         isError: false,
         metadata: { modelCallId: 'model-call-nested-read' },
@@ -328,8 +347,10 @@ describe('normalizeCursorUpdate', () => {
     ]);
   });
 
+  // Defensive: `modelCallId` is required by ToolCallDeltaUpdateSchema, so this shape is not a live
+  // 1.0.28 event. The fallback exists so an SDK that relaxes the field cannot lose tool identity.
   it('inherits the parent modelCallId when a nested tool update omits it', () => {
-    const events = normalizeCursorUpdate(new CursorEventNormalizer(false), {
+    const update = {
       type: 'tool-call-delta',
       callId: 'call-task',
       modelCallId: 'model-call-task',
@@ -338,7 +359,9 @@ describe('normalizeCursorUpdate', () => {
         callId: 'call-nested-shell',
         toolCall: { type: 'shell', args: { command: 'pwd' } },
       },
-    });
+    };
+    expect(ToolCallDeltaUpdateSchema.safeParse(update).success).toBe(false);
+    const events = normalizeCursorUpdate(new CursorEventNormalizer(false), update);
     expect(events.find((event) => event.kind === 'tool-input-start')).toMatchObject({
       toolCallId: 'call-nested-shell',
       metadata: { modelCallId: 'model-call-task' },
@@ -355,8 +378,10 @@ describe('normalizeCursorUpdate', () => {
     ).toThrow(/taskUpdate.*object/);
   });
 
+  // Defensive: NestedTaskUpdate has no 'tool-call-delta' member, so the SDK cannot emit this today.
+  // The recursion still has to terminate rather than throw if deeper nesting is ever published.
   it('does not throw on tool-call-delta and drops deeper nested tool-call-delta', () => {
-    const events = normalizeCursorUpdate(new CursorEventNormalizer(false), {
+    const update = {
       type: 'tool-call-delta',
       callId: 'call-task',
       modelCallId: 'model-call-task',
@@ -366,7 +391,9 @@ describe('normalizeCursorUpdate', () => {
         modelCallId: 'model-call-deeper',
         taskUpdate: { type: 'text-delta', text: 'dropped' },
       },
-    });
+    };
+    expect(ToolCallDeltaUpdateSchema.safeParse(update).success).toBe(false);
+    const events = normalizeCursorUpdate(new CursorEventNormalizer(false), update);
     expect(events.filter((event) => event.kind !== 'raw')).toEqual([]);
     expect(events).toEqual(
       expect.arrayContaining([expect.objectContaining({ kind: 'raw', conditional: true })])
