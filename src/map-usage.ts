@@ -23,9 +23,10 @@ function completeTurnUsage(usage: NormalizedUsageInput): TurnUsageInput | undefi
   };
 }
 
-// @cursor/sdk@1.0.23 declares these helpers internally but does not export them
-// from its public package entrypoint. Keep the documented field-wise behavior
-// here until the helpers become part of the published API.
+// @cursor/sdk declares these helpers internally but does not export them from
+// its public package entrypoint (re-verified against the pinned version during
+// canary triage; see docs/GAP_ANALYSIS.md). Keep the documented field-wise
+// behavior here until the helpers become part of the published API.
 function toTokenUsage(usage: TurnUsageInput | undefined): TokenUsage | undefined {
   if (!usage) return undefined;
   return {

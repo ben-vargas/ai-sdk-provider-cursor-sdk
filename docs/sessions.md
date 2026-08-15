@@ -77,8 +77,9 @@ await providerB.close();
 
 You can also construct a model with `{ agentId }`. Per-call `providerOptions.cursor.agentId` has the
 highest precedence. Resumed handles are cached by ID inside a provider, so later calls on that model
-reuse them. The local resume path receives `sdkAgentOptions`, not creation-time `settings.local`,
-which is why the explicit store and `cwd` appear under `sdkAgentOptions.local` above.
+reuse them. The local resume path receives `tools` / `disallowedTools` and `sdkAgentOptions`, not
+creation-time `settings.local`, which is why the explicit store and `cwd` appear under
+`sdkAgentOptions.local` above.
 
 Cursor auto-detects runtime from the ID: `bc-...` routes to cloud; other IDs route to the local
 store. Do not present an ID alone as durable local persistence: the validated default-store
@@ -162,8 +163,9 @@ start in the provider default `'agent'` mode.
 
 Local resume must resolve the same persistence store/workspace that contains the agent. Model
 `settings.local` is used during `Agent.create`; the explicit resume path passes auth, MCP servers,
-subagents, and `sdkAgentOptions`. A cross-instance ID lookup through the default local store returned
-`agent_not_found` during the 2026-07-15 live validation, so it is not a supported persistence example.
+subagents, `tools` / `disallowedTools`, and `sdkAgentOptions`. A cross-instance ID lookup through
+the default local store returned `agent_not_found` during the 2026-07-15 live validation, so it is
+not a supported persistence example.
 
 For deliberate local persistence, create with an explicit `JsonlLocalAgentStore`, then resume with a
 new store object pointed at the same directory through `sdkAgentOptions.local`, as shown above. Keep

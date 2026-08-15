@@ -25,8 +25,14 @@ const settingsCoverage = {
   createNewAgentPerCall: true,
   agentName: 'test agent',
   mode: 'plan',
-  local: { cwd: '/repo' },
-  cloud: { repos: [{ url: 'https://example.test/repo' }] },
+  tools: ['shell', 'read'],
+  disallowedTools: ['delete'],
+  local: { cwd: '/repo', dirs: ['/other'] },
+  cloud: {
+    repos: [{ url: 'https://example.test/repo' }],
+    metadata: { team: 'platform' },
+    openAsCursorGithubApp: true,
+  },
   customTools: { lookup: { execute: async () => 'ok' } },
   mcpServers: { docs: { type: 'http', url: 'https://example.test/mcp' } },
   agents: { reviewer: { description: 'reviews', prompt: 'Review changes' } },
@@ -104,6 +110,24 @@ describe('cursorSettingsSchema', () => {
     expect(cursorSettingsSchema.safeParse({ cloud: {}, local: { customTools } }).success).toBe(
       false
     );
+  });
+
+  it('rejects tools and disallowedTools when cloud is set', () => {
+    expect(cursorSettingsSchema.safeParse({ cloud: {}, tools: ['shell'] }).success).toBe(false);
+    expect(cursorSettingsSchema.safeParse({ cloud: {}, disallowedTools: ['delete'] }).success).toBe(
+      false
+    );
+    expect(cursorSettingsSchema.safeParse({ cloud: {}, tools: [] }).success).toBe(false);
+  });
+
+  it('accepts a legacy cwd array and first-class tool allow/deny lists', () => {
+    expect(
+      cursorSettingsSchema.safeParse({
+        local: { cwd: ['/repo', '/other'], dirs: ['/extra'] },
+        tools: [],
+        disallowedTools: ['mcp'],
+      }).success
+    ).toBe(true);
   });
 
   it.each(['model', 'apiKey', 'agentId', 'idempotencyKey'] as const)(

@@ -1,6 +1,31 @@
-import { Agent, type AgentOptions, type SDKAgent } from '@cursor/sdk';
+import { Agent, type AgentOptions, type LocalAgentOptions, type SDKAgent } from '@cursor/sdk';
 import type { Logger } from './logger.js';
-import type { CursorProviderOptions, CursorSettings } from './settings.js';
+import type { CursorLocalSettings, CursorProviderOptions, CursorSettings } from './settings.js';
+
+/**
+ * `@cursor/sdk` 1.0.24+ accepts only a string `cwd`. Provider settings still
+ * allow `string[]` so existing callers keep working; extra entries become
+ * additional `dirs` workspace roots.
+ */
+export function toSdkLocalOptions(local: CursorLocalSettings): LocalAgentOptions {
+  const { cwd, dirs, ...rest } = local;
+  if (!Array.isArray(cwd)) {
+    return {
+      ...rest,
+      ...(cwd !== undefined ? { cwd } : {}),
+      ...(dirs !== undefined ? { dirs } : {}),
+    };
+  }
+  const [primary, ...additional] = cwd;
+  // Documented order (docs/configuration.md): the legacy array's extra entries stay adjacent to
+  // their `cwd`, and explicit `dirs` merge after them.
+  const mergedDirs = [...additional, ...(dirs ?? [])];
+  return {
+    ...rest,
+    ...(primary !== undefined ? { cwd: primary } : {}),
+    ...(mergedDirs.length > 0 ? { dirs: mergedDirs } : dirs !== undefined ? { dirs } : {}),
+  };
+}
 
 export interface AcquireAgentOptions {
   modelScope: object;
@@ -128,7 +153,7 @@ export class CursorAgentManager {
 
   private createOptions(options: AcquireAgentOptions): AgentOptions {
     const { settings, callOptions } = options;
-    let local = settings.local ? { ...settings.local } : undefined;
+    let local = settings.local ? toSdkLocalOptions(settings.local) : undefined;
     if (settings.customTools) local = { ...local, customTools: settings.customTools };
     const runtime = settings.cloud
       ? { cloud: settings.cloud }
@@ -144,6 +169,10 @@ export class CursorAgentManager {
       ...runtime,
       ...(settings.mcpServers ? { mcpServers: settings.mcpServers } : {}),
       ...(settings.agents ? { agents: settings.agents } : {}),
+      ...(settings.tools !== undefined ? { tools: settings.tools } : {}),
+      ...(settings.disallowedTools !== undefined
+        ? { disallowedTools: settings.disallowedTools }
+        : {}),
       ...(settings.sdkAgentOptions ?? {}),
     };
   }
@@ -154,6 +183,10 @@ export class CursorAgentManager {
       apiKey: options.apiKey,
       ...(settings.mcpServers ? { mcpServers: settings.mcpServers } : {}),
       ...(settings.agents ? { agents: settings.agents } : {}),
+      ...(settings.tools !== undefined ? { tools: settings.tools } : {}),
+      ...(settings.disallowedTools !== undefined
+        ? { disallowedTools: settings.disallowedTools }
+        : {}),
       ...(settings.sdkAgentOptions ?? {}),
     };
   }

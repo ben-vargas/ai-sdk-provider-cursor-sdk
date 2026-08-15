@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Pinned `@cursor/sdk` from `1.0.23` to `1.0.28` after triaging weekly canary drift.
+- Map first-class `tools` / `disallowedTools` on create and resume (local only; rejected with
+  `cloud`).
+- Map `local.dirs`, `cloud.metadata`, and `cloud.openAsCursorGithubApp`. A legacy `local.cwd`
+  string array is still accepted and migrated to `cwd` + `dirs` before the SDK is called.
+- Handle `tool-call-delta` by recursing `taskUpdate` through the existing event normalizer so
+  nested subagent text and tools are visible, instead of throwing on the default branch.
+
 ## [1.0.0] - 2026-07-14
 
 ### Added

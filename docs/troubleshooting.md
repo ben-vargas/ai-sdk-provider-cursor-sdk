@@ -138,7 +138,7 @@ retryable protocol-consistency `APICallError`. This usually indicates drift in `
 Actions:
 
 1. Record `error.data`, especially code, request ID, operation, and prompt excerpt.
-2. Reproduce against the pinned `@cursor/sdk@1.0.23`.
+2. Reproduce against the pinned `@cursor/sdk@1.0.28`.
 3. Inspect the weekly canary against `@cursor/sdk@latest`.
 4. Update event handling and its compile-time drift guard before bumping the pin.
 
