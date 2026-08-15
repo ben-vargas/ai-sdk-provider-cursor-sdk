@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { extractJsonValue } from './extract-json-from-stdout.mjs';
 
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const root = resolve(import.meta.dirname, '..');
@@ -17,14 +18,19 @@ const npmEnvironment = {
 let tarball;
 
 try {
-  const packed = JSON.parse(
+  const packed = extractJsonValue(
     execFileSync(npm, ['pack', '--json', '--ignore-scripts'], {
       cwd: root,
       encoding: 'utf8',
       env: npmEnvironment,
     })
   );
-  tarball = resolve(root, packed[0].filename);
+  const packedEntry = Array.isArray(packed) ? packed[0] : packed;
+  assert.ok(
+    packedEntry && typeof packedEntry === 'object' && 'filename' in packedEntry,
+    'npm pack --json did not report a tarball filename'
+  );
+  tarball = resolve(root, String(packedEntry.filename));
   writeFileSync(
     join(temporaryDirectory, 'package.json'),
     JSON.stringify({

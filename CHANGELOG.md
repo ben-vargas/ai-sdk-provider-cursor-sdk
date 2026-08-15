@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Packed-consumer smoke parses `npm pack --json` even when npm prints notices before the JSON
+  payload (Node 22 / older npm).
+- Resume-handle cache is keyed by agent ID plus forwarded resume options (`tools`,
+  `disallowedTools`, `mcpServers`, `agents`, `sdkAgentOptions`) so two models that resume the same
+  ID with different restrictions do not share a handle.
+
 ### Changed
 
 - Pinned `@cursor/sdk` from `1.0.23` to `1.0.28` after triaging weekly canary drift.

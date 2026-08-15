@@ -58,6 +58,50 @@ function abortReason(signal: AbortSignal): unknown {
   return signal.reason ?? new DOMException('This operation was aborted', 'AbortError');
 }
 
+/**
+ * Resume-handle cache identity: canonical JSON of `agentId` plus every option
+ * actually forwarded to `Agent.resume`, except `apiKey`.
+ *
+ * The SDK does not persist `tools` / `disallowedTools` / `mcpServers` /
+ * `agents` / `sdkAgentOptions` across resume, so two acquires that share an
+ * agent ID but differ in those fields must not reuse one handle. Same agent ID
+ * + same restrictions still hit the cache.
+ *
+ * `apiKey` is omitted so the key is not a secret and equivalent auth does not
+ * fragment the cache; the live handle already used the first resume's key.
+ * Object keys are sorted so insertion order cannot miss; array order is kept
+ * because it is forwarded as-is. Non-JSON values (functions) are dropped.
+ */
+function resumeCacheKey(agentId: string, resumeOptions: Partial<AgentOptions>): string {
+  const forwarded = { ...resumeOptions };
+  delete forwarded.apiKey;
+  return stableStringify({ agentId, ...forwarded });
+}
+
+function stableStringify(value: unknown): string {
+  return JSON.stringify(canonicalize(value));
+}
+
+function canonicalize(value: unknown): unknown {
+  if (value === undefined || typeof value === 'function' || typeof value === 'symbol') {
+    return undefined;
+  }
+  if (value === null || typeof value === 'boolean' || typeof value === 'number') return value;
+  if (typeof value === 'bigint') return value.toString();
+  if (typeof value === 'string') return value;
+  if (typeof value !== 'object') return String(value);
+  if (Array.isArray(value)) {
+    return value.map((item) => canonicalize(item) ?? null);
+  }
+  const source = value as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+  for (const key of Object.keys(source).sort()) {
+    const next = canonicalize(source[key]);
+    if (next !== undefined) result[key] = next;
+  }
+  return result;
+}
+
 export class CursorAgentManager {
   private resumedAgents = new Map<string, Promise<SDKAgent>>();
   private modelAgents = new WeakMap<object, Promise<SDKAgent>>();
@@ -74,11 +118,12 @@ export class CursorAgentManager {
   async acquire(options: AcquireAgentOptions): Promise<CursorAgentCallScope> {
     const resumeId = options.callOptions.agentId ?? options.settings.agentId;
     if (resumeId) {
-      const agentPromise = this.resumeAgent(resumeId, options);
+      const cacheKey = resumeCacheKey(resumeId, this.resumeOptions(resumeId, options));
+      const agentPromise = this.resumeAgent(cacheKey, resumeId, options);
       const agent = await agentPromise;
       return this.scope(agent, false, () => {
-        if (this.resumedAgents.get(resumeId) === agentPromise) {
-          this.resumedAgents.delete(resumeId);
+        if (this.resumedAgents.get(cacheKey) === agentPromise) {
+          this.resumedAgents.delete(cacheKey);
         }
       });
     }
@@ -130,17 +175,21 @@ export class CursorAgentManager {
     for (const agent of agents) this.closeAgent(agent);
   }
 
-  private resumeAgent(agentId: string, options: AcquireAgentOptions): Promise<SDKAgent> {
-    let agentPromise = this.resumedAgents.get(agentId);
+  private resumeAgent(
+    cacheKey: string,
+    agentId: string,
+    options: AcquireAgentOptions
+  ): Promise<SDKAgent> {
+    let agentPromise = this.resumedAgents.get(cacheKey);
     if (!agentPromise) {
       const resumeOptions = this.resumeOptions(agentId, options);
       agentPromise = this.track(
         Agent.resume(agentId, resumeOptions).then((agent) => this.own(agent))
       );
-      this.resumedAgents.set(agentId, agentPromise);
+      this.resumedAgents.set(cacheKey, agentPromise);
       void agentPromise.catch(() => {
-        if (this.resumedAgents.get(agentId) === agentPromise) {
-          this.resumedAgents.delete(agentId);
+        if (this.resumedAgents.get(cacheKey) === agentPromise) {
+          this.resumedAgents.delete(cacheKey);
         }
       });
     }

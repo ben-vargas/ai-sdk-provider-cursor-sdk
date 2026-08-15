@@ -76,8 +76,11 @@ await providerB.close();
 ```
 
 You can also construct a model with `{ agentId }`. Per-call `providerOptions.cursor.agentId` has the
-highest precedence. Resumed handles are cached by ID inside a provider, so later calls on that model
-reuse them. The local resume path receives `tools` / `disallowedTools` and `sdkAgentOptions`, not
+highest precedence. Resumed handles are cached by agent ID plus the resume options actually
+forwarded to `Agent.resume` (`mcpServers`, `agents`, `tools` / `disallowedTools`, and
+`sdkAgentOptions`), so later calls that share that identity reuse one handle. Different restriction
+sets for the same ID call `Agent.resume` again. The local resume path receives
+`tools` / `disallowedTools` and `sdkAgentOptions`, not
 creation-time `settings.local`, which is why the explicit store and `cwd` appear under
 `sdkAgentOptions.local` above.
 

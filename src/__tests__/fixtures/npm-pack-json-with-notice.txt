@@ -1,0 +1,4 @@
+npm notice
+npm notice 📦  ai-sdk-provider-cursor-sdk@1.0.0
+npm notice [debug] packing
+[{"id":"ai-sdk-provider-cursor-sdk@1.0.0","name":"ai-sdk-provider-cursor-sdk","filename":"ai-sdk-provider-cursor-sdk-1.0.0.tgz","filename_escaped":"file-with-\"quotes\"-and-{braces}.tgz"}]
