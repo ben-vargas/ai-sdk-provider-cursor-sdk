@@ -58,6 +58,22 @@ function abortReason(signal: AbortSignal): unknown {
   return signal.reason ?? new DOMException('This operation was aborted', 'AbortError');
 }
 
+function canonicalizeToolList(tools: CursorSettings['tools']): string[] | null {
+  return tools === undefined ? null : [...tools].sort();
+}
+
+/**
+ * Resume handles must not be shared across different tool restrictions. An
+ * ID-only cache lets `tools: []` inherit an earlier unrestricted handle.
+ */
+export function resumeCacheKey(agentId: string, settings: CursorSettings): string {
+  return JSON.stringify({
+    agentId,
+    tools: canonicalizeToolList(settings.tools),
+    disallowedTools: canonicalizeToolList(settings.disallowedTools),
+  });
+}
+
 export class CursorAgentManager {
   private resumedAgents = new Map<string, Promise<SDKAgent>>();
   private modelAgents = new WeakMap<object, Promise<SDKAgent>>();
@@ -74,11 +90,12 @@ export class CursorAgentManager {
   async acquire(options: AcquireAgentOptions): Promise<CursorAgentCallScope> {
     const resumeId = options.callOptions.agentId ?? options.settings.agentId;
     if (resumeId) {
+      const cacheKey = resumeCacheKey(resumeId, options.settings);
       const agentPromise = this.resumeAgent(resumeId, options);
       const agent = await agentPromise;
       return this.scope(agent, false, () => {
-        if (this.resumedAgents.get(resumeId) === agentPromise) {
-          this.resumedAgents.delete(resumeId);
+        if (this.resumedAgents.get(cacheKey) === agentPromise) {
+          this.resumedAgents.delete(cacheKey);
         }
       });
     }
@@ -131,16 +148,17 @@ export class CursorAgentManager {
   }
 
   private resumeAgent(agentId: string, options: AcquireAgentOptions): Promise<SDKAgent> {
-    let agentPromise = this.resumedAgents.get(agentId);
+    const cacheKey = resumeCacheKey(agentId, options.settings);
+    let agentPromise = this.resumedAgents.get(cacheKey);
     if (!agentPromise) {
       const resumeOptions = this.resumeOptions(agentId, options);
       agentPromise = this.track(
         Agent.resume(agentId, resumeOptions).then((agent) => this.own(agent))
       );
-      this.resumedAgents.set(agentId, agentPromise);
+      this.resumedAgents.set(cacheKey, agentPromise);
       void agentPromise.catch(() => {
-        if (this.resumedAgents.get(agentId) === agentPromise) {
-          this.resumedAgents.delete(agentId);
+        if (this.resumedAgents.get(cacheKey) === agentPromise) {
+          this.resumedAgents.delete(cacheKey);
         }
       });
     }

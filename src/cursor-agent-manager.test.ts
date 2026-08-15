@@ -1,5 +1,9 @@
 import { AgentNotFoundError } from '@cursor/sdk';
-import { CursorAgentManager, type AcquireAgentOptions } from './cursor-agent-manager.js';
+import {
+  CursorAgentManager,
+  resumeCacheKey,
+  type AcquireAgentOptions,
+} from './cursor-agent-manager.js';
 import { noopLogger } from './logger.js';
 import { FakeSDKAgent, loadDeltaFixture } from './__tests__/fixtures/fake-cursor-sdk.js';
 import {
@@ -181,7 +185,7 @@ describe('CursorAgentManager acquisition and ownership', () => {
     expect(mockAgentCreate).not.toHaveBeenCalled();
   });
 
-  it('reuses one cached agent per model scope and one resumed handle per agent ID', async () => {
+  it('reuses one cached agent per model scope and one resumed handle per matching resume key', async () => {
     const created = fakeAgent('agent-created');
     const resumed = fakeAgent('agent-resumed');
     mockAgentCreate.mockResolvedValue(created);
@@ -201,6 +205,76 @@ describe('CursorAgentManager acquisition and ownership', () => {
       (await manager.acquire(acquireOptions({ callOptions: { agentId: 'agent-resumed' } }))).agent
     ).toBe(resumed);
     expect(mockAgentResume).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reuse a resumed handle when tools or disallowedTools differ', async () => {
+    const unrestricted = fakeAgent('agent-shared');
+    const allowNone = fakeAgent('agent-shared');
+    const denied = fakeAgent('agent-shared');
+    const allowListed = fakeAgent('agent-shared');
+    mockAgentResume
+      .mockResolvedValueOnce(unrestricted)
+      .mockResolvedValueOnce(allowNone)
+      .mockResolvedValueOnce(denied)
+      .mockResolvedValueOnce(allowListed);
+    const manager = new CursorAgentManager(noopLogger);
+
+    const first = await manager.acquire(
+      acquireOptions({ callOptions: { agentId: 'agent-shared' } })
+    );
+    const second = await manager.acquire(
+      acquireOptions({
+        callOptions: { agentId: 'agent-shared' },
+        settings: { tools: [] },
+      })
+    );
+    const third = await manager.acquire(
+      acquireOptions({
+        callOptions: { agentId: 'agent-shared' },
+        settings: { disallowedTools: ['shell'] },
+      })
+    );
+    const reusedAllowNone = await manager.acquire(
+      acquireOptions({
+        callOptions: { agentId: 'agent-shared' },
+        settings: { tools: [] },
+      })
+    );
+    const reusedOrdered = await manager.acquire(
+      acquireOptions({
+        callOptions: { agentId: 'agent-shared' },
+        settings: { tools: ['read', 'shell'] },
+      })
+    );
+    const reusedReordered = await manager.acquire(
+      acquireOptions({
+        callOptions: { agentId: 'agent-shared' },
+        settings: { tools: ['shell', 'read'] },
+      })
+    );
+
+    expect(first.agent).toBe(unrestricted);
+    expect(second.agent).toBe(allowNone);
+    expect(third.agent).toBe(denied);
+    expect(reusedAllowNone.agent).toBe(allowNone);
+    expect(reusedOrdered.agent).toBe(allowListed);
+    expect(reusedReordered.agent).toBe(allowListed);
+    expect(mockAgentResume).toHaveBeenCalledTimes(4);
+    expect(mockAgentResume).toHaveBeenNthCalledWith(1, 'agent-shared', { apiKey: 'cursor-key' });
+    expect(mockAgentResume).toHaveBeenNthCalledWith(2, 'agent-shared', {
+      apiKey: 'cursor-key',
+      tools: [],
+    });
+    expect(mockAgentResume).toHaveBeenNthCalledWith(3, 'agent-shared', {
+      apiKey: 'cursor-key',
+      disallowedTools: ['shell'],
+    });
+    expect(resumeCacheKey('agent-shared', { tools: ['read', 'shell'] })).toBe(
+      resumeCacheKey('agent-shared', { tools: ['shell', 'read'] })
+    );
+    expect(resumeCacheKey('agent-shared', {})).not.toBe(
+      resumeCacheKey('agent-shared', { tools: [] })
+    );
   });
 
   it('uses injected agents without taking ownership', async () => {
