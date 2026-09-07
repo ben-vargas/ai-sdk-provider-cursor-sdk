@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   upstream-sdk-drift:
@@ -23,11 +22,16 @@ jobs:
       matrix:
         node-version: [22.x, 24.x]
 
+    # Separate outputs retain both failures regardless of matrix completion order.
+    outputs:
+      node22: ${{ steps.outcome.outputs.node22 }}
+      node24: ${{ steps.outcome.outputs.node24 }}
+
     steps:
       - uses: actions/checkout@v6
         with:
-          # Do not persist an issues-capable token where an unpinned package
-          # or transitive dependency could read it.
+          # The matrix has read-only permissions. Keep its token out of git
+          # config as additional protection when installing unpinned dependencies.
           persist-credentials: false
 
       - name: Use Node.js ${{ matrix.node-version }}
@@ -57,32 +61,62 @@ jobs:
         id: tests
         run: npm test
 
-      - name: File or update SDK drift issue
+      # Infrastructure failures never reach these checks and must not file drift.
+      - name: Record drift outcome
+        id: outcome
         if: failure() && (steps.typecheck.outcome == 'failure' || steps.tests.outcome == 'failure')
-        uses: actions/github-script@v8
+        env:
+          NODE_VERSION: ${{ matrix.node-version }}
+          TYPECHECK_OUTCOME: ${{ steps.typecheck.outcome }}
+        run: |
+          node --input-type=commonjs <<'NODE'
+          const fs = require('node:fs');
+          const report = {
+            node: process.env.NODE_VERSION,
+            sdkVersion: JSON.parse(fs.readFileSync('node_modules/@cursor/sdk/package.json', 'utf8')).version,
+            pinned: JSON.parse(fs.readFileSync('package.json', 'utf8')).dependencies['@cursor/sdk'],
+            failedStep: process.env.TYPECHECK_OUTCOME === 'failure' ? 'typecheck' : 'unit tests',
+          };
+          const key = `node${process.env.NODE_VERSION.split('.')[0]}`;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${JSON.stringify(report)}\n`);
+          NODE
+
+  # One writer after both matrix jobs finish avoids the race seen in #6/#7.
+  file-drift-issue:
+    name: File or update SDK drift issue
+    needs: upstream-sdk-drift
+    if: >-
+      always() && !cancelled() &&
+      (needs.upstream-sdk-drift.outputs.node22 != '' || needs.upstream-sdk-drift.outputs.node24 != '')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    # A repository-wide group also prevents overlapping runs from racing the
+    # list-then-create operation. Never interrupt a writer already in progress.
+    concurrency:
+      group: cursor-sdk-canary-issue
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/github-script@v8
+        env:
+          NODE22_REPORT: ${{ needs.upstream-sdk-drift.outputs.node22 }}
+          NODE24_REPORT: ${{ needs.upstream-sdk-drift.outputs.node24 }}
         with:
           script: |
-            const fs = require('fs');
-            let sdkVersion = 'unknown';
-            try {
-              sdkVersion = JSON.parse(
-                fs.readFileSync('node_modules/@cursor/sdk/package.json', 'utf8')
-              ).version;
-            } catch {}
-
-            const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            const pinned = packageJson.dependencies['@cursor/sdk'];
+            const reports = [process.env.NODE22_REPORT, process.env.NODE24_REPORT]
+              .filter(Boolean)
+              .map(report => JSON.parse(report));
             const title = 'SDK canary failing against @cursor/sdk@latest';
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const failedStep =
-              '${{ steps.typecheck.outcome }}' === 'failure' ? 'typecheck' : 'unit tests';
             const body = [
-              `The weekly canary failed against \`@cursor/sdk@${sdkVersion}\`.`,
+              'The weekly canary detected upstream SDK drift.',
               '',
               `- Run: ${runUrl}`,
-              `- Failed step: ${failedStep}`,
-              `- Node: ${{ matrix.node-version }}`,
-              `- Pinned version: \`${pinned}\``,
+              ...reports.map(report =>
+                `- Node ${report.node}: ${report.failedStep} failed against \`@cursor/sdk@${report.sdkVersion}\` (pinned: \`${report.pinned}\`).`
+              ),
               '',
               'This job tests upstream drift, not the pinned-dependency health signal.',
               'Typecheck includes the option/event coverage guard in',
