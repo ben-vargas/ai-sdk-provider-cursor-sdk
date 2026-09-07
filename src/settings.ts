@@ -32,6 +32,8 @@ export interface CursorSettings {
   createNewAgentPerCall?: boolean;
   agentName?: string;
   mode?: 'agent' | 'plan';
+  /** Replaces Cursor's built-in harness prompt (local agents with server access only). */
+  systemPrompt?: string;
   tools?: ToolName[];
   disallowedTools?: ToolName[];
   local?: CursorLocalSettings;
@@ -177,6 +179,7 @@ const cloudOptionsSchema = z
     skipReviewerRequest: z.boolean().optional(),
     envVars: z.record(z.string(), z.string()).optional(),
     metadata: z.record(z.string(), z.string()).optional(),
+    agentServeAgent: z.string().optional(),
   })
   .strict();
 
@@ -190,6 +193,10 @@ export const cursorSettingsSchema: z.ZodType<CursorSettings> = z
     createNewAgentPerCall: z.boolean().optional(),
     agentName: z.string().optional(),
     mode: z.enum(['agent', 'plan']).optional(),
+    systemPrompt: z
+      .string()
+      .refine((value) => value.trim().length > 0, 'systemPrompt cannot be blank')
+      .optional(),
     tools: toolNamesSchema.optional(),
     disallowedTools: toolNamesSchema.optional(),
     local: localOptionsSchema.optional(),
@@ -248,6 +255,36 @@ export const cursorSettingsSchema: z.ZodType<CursorSettings> = z
       });
     }
     const sdkAgentOptions = settings.sdkAgentOptions as Record<string, unknown> | undefined;
+    // Match the SDK option spread precedence, including explicit undefined overrides.
+    const effective = { ...settings, ...sdkAgentOptions };
+    const systemPrompt = effective.systemPrompt;
+    if (systemPrompt !== undefined) {
+      const path =
+        sdkAgentOptions && 'systemPrompt' in sdkAgentOptions
+          ? ['sdkAgentOptions', 'systemPrompt']
+          : ['systemPrompt'];
+      if (typeof systemPrompt !== 'string' || systemPrompt.trim().length === 0) {
+        context.addIssue({
+          code: 'custom',
+          path,
+          message: 'systemPrompt must be a non-empty string',
+        });
+      }
+      if (effective.cloud || settings.agentId?.startsWith('bc-')) {
+        context.addIssue({
+          code: 'custom',
+          path,
+          message: 'systemPrompt is supported only by local Cursor agents',
+        });
+      }
+      if (settings.agent) {
+        context.addIssue({
+          code: 'custom',
+          path,
+          message: 'Configure systemPrompt when creating or resuming the injected agent',
+        });
+      }
+    }
     for (const key of managedAgentOptionKeys) {
       if (sdkAgentOptions && key in sdkAgentOptions) {
         context.addIssue({

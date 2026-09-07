@@ -18,6 +18,7 @@ type AgentMappedKey =
   | 'mcpServers'
   | 'agents'
   | 'mode'
+  | 'systemPrompt'
   | 'tools'
   | 'disallowedTools';
 type AgentProviderManagedKey = 'agentId' | 'idempotencyKey';
@@ -50,7 +51,8 @@ type CloudAgentMappedKey =
   | 'openAsCursorGithubApp'
   | 'skipReviewerRequest'
   | 'envVars'
-  | 'metadata';
+  | 'metadata'
+  | 'agentServeAgent';
 
 type InteractionMappedType =
   | 'text-delta'

@@ -1,7 +1,7 @@
 name: Cursor SDK Canary
 
 # Weekly drift check against the unpinned @cursor/sdk@latest. The regular CI
-# workflow remains the health signal for the package's pinned 1.0.28 dependency.
+# workflow remains the health signal for the package's pinned 1.0.31 dependency.
 
 on:
   schedule:

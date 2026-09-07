@@ -87,6 +87,36 @@ Cursor conversation mode. Newly created agents default to `'agent'`. A call-leve
 neither tier configures a mode, sends omit the override so reused and resumed agents preserve their
 current mode.
 
+### Custom Cursor system prompt
+
+#### `systemPrompt?: string`
+
+Explicitly replace the main local agent loop's entire built-in harness prompt. Configure this
+on the model or in `defaultSettings`; it is forwarded to both `Agent.create` and `Agent.resume`.
+The value must contain non-whitespace text, and its original whitespace is preserved.
+
+```ts
+const model = cursor('auto', {
+  local: { cwd: process.cwd() },
+  systemPrompt:
+    'You are a coding assistant. Inspect the workspace using the available tools, make requested changes, and explain the result.',
+});
+```
+
+This replaces Cursor's coding-assistant identity, tool-use protocol, and communication guidance.
+Callers must supply the guidance their agent needs. Tool schemas, ambient rules/skills/user context,
+and subagent prompts remain controlled by Cursor. Server access is gated: accounts without access
+receive an `InvalidArgument` on the first send. Cloud agents do not support this option.
+For an injected `agent`, set the prompt when constructing that agent instead.
+
+Cursor does not persist this prompt. Pass it again when resuming in a new provider/model instance.
+Resumed handles are cached by agent ID, effective prompt, and tool restrictions, including
+`sdkAgentOptions` overrides. The escape hatch takes precedence over the first-class setting.
+
+AI SDK `system` messages retain the existing `systemMessageMode` policy below; they are not
+implicitly converted into a harness replacement. Setting `systemPrompt` does not consume or merge
+those messages. This explicit option is separate from the lossy `prefix` fallback.
+
 ### Runtime
 
 #### `local?: LocalAgentOptions`
@@ -108,26 +138,31 @@ When both `local` and `cloud` are absent, the provider explicitly creates with `
 than relying on undocumented omit-both behavior.
 
 `settings.local` is applied when creating an agent. On explicit `agentId` resume, the implementation
-passes auth, MCP servers, subagents, `tools` / `disallowedTools`, and `sdkAgentOptions`; provide
+passes auth, MCP servers, subagents, `systemPrompt`, `tools` / `disallowedTools`, and `sdkAgentOptions`; provide
 advanced resume-only local routing such as a custom store through `sdkAgentOptions.local`.
 
 #### `cloud?: CloudAgentOptions`
 
 Cloud runtime options:
 
-| Field                   | Type                                                      | Notes                                                                                   |
-| ----------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `env`                   | `{ type: 'cloud' \| 'pool' \| 'machine'; name?: string }` | Cursor-hosted, self-hosted pool, or named machine target.                               |
-| `repos`                 | `{ url: string; startingRef?: string; prUrl?: string }[]` | Repositories/refs for the VM.                                                           |
-| `workOnCurrentBranch`   | `boolean`                                                 | Work on the existing branch.                                                            |
-| `autoCreatePR`          | `boolean`                                                 | Ask Cursor to open a PR after the run.                                                  |
-| `openAsCursorGithubApp` | `boolean`                                                 | Open PRs as the Cursor GitHub App instead of the API-key owner (`@cursor/sdk` 1.0.27+). |
-| `skipReviewerRequest`   | `boolean`                                                 | Do not request the caller as reviewer.                                                  |
-| `envVars`               | `Record<string, string>`                                  | Agent-scoped cloud environment variables.                                               |
-| `metadata`              | `Record<string, string>`                                  | Caller-owned tags persisted on the cloud agent (`@cursor/sdk` 1.0.25+).                 |
+| Field                   | Type                                                      | Notes                                                                                                               |
+| ----------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `env`                   | `{ type: 'cloud' \| 'pool' \| 'machine'; name?: string }` | Cursor-hosted, self-hosted pool, or named machine target.                                                           |
+| `repos`                 | `{ url: string; startingRef?: string; prUrl?: string }[]` | Repositories/refs for the VM.                                                                                       |
+| `workOnCurrentBranch`   | `boolean`                                                 | Work on the existing branch.                                                                                        |
+| `autoCreatePR`          | `boolean`                                                 | Ask Cursor to open a PR after the run.                                                                              |
+| `openAsCursorGithubApp` | `boolean`                                                 | Open PRs as the Cursor GitHub App instead of the API-key owner (`@cursor/sdk` 1.0.27+).                             |
+| `skipReviewerRequest`   | `boolean`                                                 | Do not request the caller as reviewer.                                                                              |
+| `envVars`               | `Record<string, string>`                                  | Agent-scoped cloud environment variables.                                                                           |
+| `agentServeAgent`       | `string`                                                  | Agent Serve `defineAgent` directory slug used for cloud skill discovery on personal-key creates; not user metadata. |
+| `metadata`              | `Record<string, string>`                                  | Caller-owned tags persisted on the cloud agent (`@cursor/sdk` 1.0.25+).                                             |
 
 `local` and `cloud` are mutually exclusive. Local custom tools, `tools`, or `disallowedTools`
 combined with `cloud` fail validation.
+
+`cloud.agentServeAgent` is a creation setting. Cursor persists it so the cloud pod discovers skills
+under `/cursor/stores/user/agent-serve/<agentServeAgent>/skills`; agent Get/List responses omit this
+internal value. Normal cloud resume uses the persisted configuration.
 
 ### Cursor tools and configuration
 

@@ -298,14 +298,14 @@ function applySystemPolicy(
     throw new UnsupportedFunctionalityError({
       functionality: 'prompt.system',
       message:
-        "Cursor root agents do not support system messages. Use systemMessageMode: 'ignore' or 'prefix' to opt into a lossy fallback.",
+        "AI SDK system messages are not automatically mapped to Cursor systemPrompt. Use systemMessageMode: 'ignore' or 'prefix' to opt into a lossy fallback.",
     });
   }
   if (mode === 'ignore') {
     warnings.push(
       unsupported(
         'prompt.system',
-        'System messages are not supported by Cursor root agents and were ignored.'
+        'AI SDK system messages were ignored; configure systemPrompt explicitly to replace the local Cursor harness prompt.'
       )
     );
     return;

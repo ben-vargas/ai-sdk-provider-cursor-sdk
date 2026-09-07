@@ -46,6 +46,7 @@ describe.skipIf(!integrationEnabled || !apiKey)('cursor-sdk live', () => {
     }
   }, 120_000);
 
+  // Valid 32x32 RGB red PNG. The old 1px fixture had a bad IDAT CRC and zlib checksum.
   it('A-10 sends inline image input through the live provider', async () => {
     const provider = await createLiveProvider();
     try {
@@ -55,20 +56,20 @@ describe.skipIf(!integrationEnabled || !apiKey)('cursor-sdk live', () => {
           {
             role: 'user',
             content: [
-              { type: 'text', text: 'What color is this one-pixel image?' },
+              { type: 'text', text: 'What color is this image? Reply with the color name.' },
               {
                 type: 'file',
                 mediaType: 'image/png',
                 data: {
                   type: 'data',
-                  data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z9xkAAAAASUVORK5CYII=',
+                  data: 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR4nO3NsQ0AAAzCMP5/un0CNkuZ41wybXsHAAAAAAAAAAAAxR4yw/wuPL6QkAAAAABJRU5ErkJggg==',
                 },
               },
             ],
           },
         ],
       });
-      expect(result.content.some((part) => part.type === 'text' && part.text.length > 0)).toBe(
+      expect(result.content.some((part) => part.type === 'text' && /red/i.test(part.text))).toBe(
         true
       );
     } finally {

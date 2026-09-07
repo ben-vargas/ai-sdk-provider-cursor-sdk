@@ -134,7 +134,8 @@ describe('convertToCursorMessage', () => {
           ? {
               type: 'unsupported',
               feature: 'prompt.system',
-              details: 'System messages are not supported by Cursor root agents and were ignored.',
+              details:
+                'AI SDK system messages were ignored; configure systemPrompt explicitly to replace the local Cursor harness prompt.',
             }
           : {
               type: 'compatibility',
