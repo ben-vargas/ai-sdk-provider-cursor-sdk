@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import type {
+  AgentUsage,
+  GetUsageOptions,
   InteractionUpdate,
   ModelSelection,
   Run,
@@ -198,5 +200,19 @@ export class FakeSDKAgent implements SDKAgent {
 
   downloadArtifact(_path: string): Promise<Buffer> {
     return Promise.resolve(Buffer.alloc(0));
+  }
+
+  getUsage(_options?: GetUsageOptions): Promise<AgentUsage> {
+    const usage = this.fixture.result.usage;
+    return Promise.resolve({
+      usage: usage ?? {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        totalTokens: 0,
+      },
+      runs: [],
+    });
   }
 }

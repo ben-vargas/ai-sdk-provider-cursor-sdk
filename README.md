@@ -20,8 +20,8 @@ AI SDK v6 primitives.
 
 | Provider | AI SDK                 | Cursor SDK           | Branch      | npm tag     |
 | -------- | ---------------------- | -------------------- | ----------- | ----------- |
-| `1.x`    | v7 (`LanguageModelV4`) | `@cursor/sdk@1.0.23` | `main`      | `latest`    |
-| `0.x`    | v6 (`LanguageModelV3`) | `@cursor/sdk@1.0.23` | `ai-sdk-v6` | `ai-sdk-v6` |
+| `1.x`    | v7 (`LanguageModelV4`) | `@cursor/sdk@1.0.31` | `main`      | `latest`    |
+| `0.x`    | v6 (`LanguageModelV3`) | `@cursor/sdk@1.0.31` | `ai-sdk-v6` | `ai-sdk-v6` |
 
 This `ai-sdk-v6` branch is the maintained AI SDK v6 compatibility line. The `main` branch and
 `latest` npm tag target AI SDK v7.
@@ -244,6 +244,7 @@ top-level key; nested objects are shallow-replaced, not deep-merged.
 | `mcpServers`                         | `Record<string, McpServerConfig>`   | —                | Creation/resume-time inline MCP servers                           |
 | `agents`                             | `Record<string, AgentDefinition>`   | —                | Inline Cursor subagents                                           |
 | `promptHistoryMode`                  | `'reject' \| 'ignore' \| 'flatten'` | `'reject'`       | Arbitrary-history policy                                          |
+| `systemPrompt`                       | `string`                            | unset            | Explicit local Cursor harness replacement; requires server access |
 | `systemMessageMode`                  | `'reject' \| 'ignore' \| 'prefix'`  | `'reject'`       | System-message policy                                             |
 | `modelParams`                        | `{ id: string; value: string }[]`   | —                | Cursor model parameters                                           |
 | `experimentalPreliminaryToolResults` | `boolean`                           | `false`          | Opt in to early, snapshot-based tool visibility                   |

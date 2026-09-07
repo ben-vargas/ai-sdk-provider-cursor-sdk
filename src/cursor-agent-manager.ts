@@ -1,6 +1,31 @@
-import { Agent, type AgentOptions, type SDKAgent } from '@cursor/sdk';
+import { Agent, type AgentOptions, type LocalAgentOptions, type SDKAgent } from '@cursor/sdk';
 import type { Logger } from './logger.js';
-import type { CursorProviderOptions, CursorSettings } from './settings.js';
+import type { CursorLocalSettings, CursorProviderOptions, CursorSettings } from './settings.js';
+
+/**
+ * `@cursor/sdk` 1.0.24+ accepts only a string `cwd`. Provider settings still
+ * allow `string[]` so existing callers keep working; extra entries become
+ * additional `dirs` workspace roots.
+ */
+export function toSdkLocalOptions(local: CursorLocalSettings): LocalAgentOptions {
+  const { cwd, dirs, ...rest } = local;
+  if (!Array.isArray(cwd)) {
+    return {
+      ...rest,
+      ...(cwd !== undefined ? { cwd } : {}),
+      ...(dirs !== undefined ? { dirs } : {}),
+    };
+  }
+  const [primary, ...additional] = cwd;
+  // Documented order (docs/configuration.md): the legacy array's extra entries stay adjacent to
+  // their `cwd`, and explicit `dirs` merge after them.
+  const mergedDirs = [...additional, ...(dirs ?? [])];
+  return {
+    ...rest,
+    ...(primary !== undefined ? { cwd: primary } : {}),
+    ...(mergedDirs.length > 0 ? { dirs: mergedDirs } : dirs !== undefined ? { dirs } : {}),
+  };
+}
 
 export interface AcquireAgentOptions {
   modelScope: object;
@@ -33,6 +58,24 @@ function abortReason(signal: AbortSignal): unknown {
   return signal.reason ?? new DOMException('This operation was aborted', 'AbortError');
 }
 
+function canonicalizeToolList(tools: CursorSettings['tools']): string[] | null {
+  return tools === undefined ? null : [...tools].sort();
+}
+
+/**
+ * Resume handles must not be shared across different prompts or tool restrictions.
+ * Include effective escape-hatch overrides so the key matches the SDK options.
+ */
+export function resumeCacheKey(agentId: string, settings: CursorSettings): string {
+  const effective = { ...settings, ...settings.sdkAgentOptions };
+  return JSON.stringify({
+    agentId,
+    systemPrompt: effective.systemPrompt ?? null,
+    tools: canonicalizeToolList(effective.tools),
+    disallowedTools: canonicalizeToolList(effective.disallowedTools),
+  });
+}
+
 export class CursorAgentManager {
   private resumedAgents = new Map<string, Promise<SDKAgent>>();
   private modelAgents = new WeakMap<object, Promise<SDKAgent>>();
@@ -49,11 +92,16 @@ export class CursorAgentManager {
   async acquire(options: AcquireAgentOptions): Promise<CursorAgentCallScope> {
     const resumeId = options.callOptions.agentId ?? options.settings.agentId;
     if (resumeId) {
+      const effective = { ...options.settings, ...options.settings.sdkAgentOptions };
+      if (resumeId.startsWith('bc-') && effective.systemPrompt !== undefined) {
+        throw new Error('systemPrompt is supported only by local Cursor agents');
+      }
+      const cacheKey = resumeCacheKey(resumeId, options.settings);
       const agentPromise = this.resumeAgent(resumeId, options);
       const agent = await agentPromise;
       return this.scope(agent, false, () => {
-        if (this.resumedAgents.get(resumeId) === agentPromise) {
-          this.resumedAgents.delete(resumeId);
+        if (this.resumedAgents.get(cacheKey) === agentPromise) {
+          this.resumedAgents.delete(cacheKey);
         }
       });
     }
@@ -106,16 +154,17 @@ export class CursorAgentManager {
   }
 
   private resumeAgent(agentId: string, options: AcquireAgentOptions): Promise<SDKAgent> {
-    let agentPromise = this.resumedAgents.get(agentId);
+    const cacheKey = resumeCacheKey(agentId, options.settings);
+    let agentPromise = this.resumedAgents.get(cacheKey);
     if (!agentPromise) {
       const resumeOptions = this.resumeOptions(agentId, options);
       agentPromise = this.track(
         Agent.resume(agentId, resumeOptions).then((agent) => this.own(agent))
       );
-      this.resumedAgents.set(agentId, agentPromise);
+      this.resumedAgents.set(cacheKey, agentPromise);
       void agentPromise.catch(() => {
-        if (this.resumedAgents.get(agentId) === agentPromise) {
-          this.resumedAgents.delete(agentId);
+        if (this.resumedAgents.get(cacheKey) === agentPromise) {
+          this.resumedAgents.delete(cacheKey);
         }
       });
     }
@@ -128,7 +177,7 @@ export class CursorAgentManager {
 
   private createOptions(options: AcquireAgentOptions): AgentOptions {
     const { settings, callOptions } = options;
-    let local = settings.local ? { ...settings.local } : undefined;
+    let local = settings.local ? toSdkLocalOptions(settings.local) : undefined;
     if (settings.customTools) local = { ...local, customTools: settings.customTools };
     const runtime = settings.cloud
       ? { cloud: settings.cloud }
@@ -144,6 +193,11 @@ export class CursorAgentManager {
       ...runtime,
       ...(settings.mcpServers ? { mcpServers: settings.mcpServers } : {}),
       ...(settings.agents ? { agents: settings.agents } : {}),
+      ...(settings.systemPrompt !== undefined ? { systemPrompt: settings.systemPrompt } : {}),
+      ...(settings.tools !== undefined ? { tools: settings.tools } : {}),
+      ...(settings.disallowedTools !== undefined
+        ? { disallowedTools: settings.disallowedTools }
+        : {}),
       ...(settings.sdkAgentOptions ?? {}),
     };
   }
@@ -154,6 +208,11 @@ export class CursorAgentManager {
       apiKey: options.apiKey,
       ...(settings.mcpServers ? { mcpServers: settings.mcpServers } : {}),
       ...(settings.agents ? { agents: settings.agents } : {}),
+      ...(settings.systemPrompt !== undefined ? { systemPrompt: settings.systemPrompt } : {}),
+      ...(settings.tools !== undefined ? { tools: settings.tools } : {}),
+      ...(settings.disallowedTools !== undefined
+        ? { disallowedTools: settings.disallowedTools }
+        : {}),
       ...(settings.sdkAgentOptions ?? {}),
     };
   }

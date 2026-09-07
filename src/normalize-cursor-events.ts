@@ -78,7 +78,8 @@ function toolDetails(record: Record<string, unknown>): {
 
 export function normalizeCursorUpdate(
   normalizer: CursorEventNormalizer,
-  update: InteractionUpdate | unknown
+  update: InteractionUpdate | unknown,
+  depth = 0
 ): NormalizedEvent[] {
   const raw = redactSensitiveData(update);
   if (!raw || !isRecord(update)) {
@@ -160,6 +161,24 @@ export function normalizeCursorUpdate(
           "Malformed Cursor 'turn-ended' update: 'usage' must be an object."
         );
       }
+      break;
+    }
+    case 'tool-call-delta': {
+      requiredString(update, 'callId', type);
+      const parentModelCallId = requiredString(update, 'modelCallId', type);
+      const taskUpdate = update.taskUpdate;
+      if (!isRecord(taskUpdate)) {
+        throw new CursorStreamConsistencyError(
+          "Malformed Cursor 'tool-call-delta' update: 'taskUpdate' must be an object."
+        );
+      }
+      // The public SDK drops deeper tool-call-delta nesting at convert time.
+      if (depth > 0) break;
+      const nested =
+        typeof taskUpdate.modelCallId === 'string' && taskUpdate.modelCallId.length > 0
+          ? taskUpdate
+          : { ...taskUpdate, modelCallId: parentModelCallId };
+      events.push(...normalizeCursorUpdate(normalizer, nested, depth + 1));
       break;
     }
     case 'token-delta':

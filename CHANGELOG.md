@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.1.1] - 2026-09-07
+
+### Added
+
+- Support `systemPrompt` as an explicit local Cursor harness replacement on create and resume,
+  with non-blank validation, cloud/injected-agent rejection, and prompt-aware resume caching.
+- Support `cloud.agentServeAgent` for Agent Serve skill discovery on cloud creation.
+
+### Changed
+
+- Pin `@cursor/sdk` from `1.0.23` to `1.0.31`, accounting for all intervening option/event drift.
+- Preserve AI SDK system-message policies and document the separate Cursor harness replacement.
+
+### Fixed
+
+- Replace the invalid live image-test PNG (bad IDAT CRC/zlib checksum) with a valid red PNG
+  and assert the recognized color. Add opt-in live SDK option smoke commands.
+
+- Backport tool allow/deny lists on create and resume, legacy workspace-array conversion plus
+  `local.dirs`, cloud metadata/GitHub App PR settings, and nested subagent event normalization.
+- Backport the Node 22 packed-consumer smoke fix and cache resumed handles by effective prompt
+  and tool restrictions, including escape-hatch overrides.
+- Preserve the AI SDK v6 / V3 provider interface and `ai-sdk-v6` release tag.
+
 ## [0.1.0] - 2026-07-14
 
 ### Added

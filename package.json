@@ -1,6 +1,6 @@
 {
   "name": "ai-sdk-provider-cursor-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AI SDK v6 provider for the Cursor Agent SDK (@cursor/sdk)",
   "type": "module",
   "sideEffects": false,
@@ -57,12 +57,13 @@
     "test:coverage": "vitest run --coverage",
     "test:integration": "CURSOR_INTEGRATION=1 vitest run src/__tests__/integration",
     "smoke:consumer": "npm run build && node scripts/smoke-consumer.mjs",
-    "validate": "npm run build && npm run typecheck && npm run format && npm run lint && npm run test"
+    "validate": "npm run build && npm run typecheck && npm run format && npm run lint && npm run test",
+    "smoke:sdk-options": "npm run build && node scripts/smoke-sdk-options.mjs"
   },
   "dependencies": {
     "@ai-sdk/provider": "^3.0.0",
     "@ai-sdk/provider-utils": "^4.0.1",
-    "@cursor/sdk": "1.0.23"
+    "@cursor/sdk": "1.0.31"
   },
   "peerDependencies": {
     "zod": "^3.0.0 || ^4.0.0"

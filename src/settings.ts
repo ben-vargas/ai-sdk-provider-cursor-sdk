@@ -10,10 +10,20 @@ import type {
   RunResult,
   SDKAgent,
   SDKCustomTool,
+  ToolName,
 } from '@cursor/sdk';
 import { z } from 'zod';
 import type { Logger } from './logger.js';
 import type { CursorPromptHistoryMode, CursorSystemMessageMode } from './types.js';
+
+/**
+ * Provider-facing local options. `@cursor/sdk` 1.0.24+ types `cwd` as a single
+ * string and adds `dirs` for extra workspace roots. Arrays remain accepted here
+ * for back-compat and are migrated to `cwd` + `dirs` at the SDK call edge.
+ */
+export type CursorLocalSettings = Omit<LocalAgentOptions, 'cwd'> & {
+  cwd?: string | string[];
+};
 
 export interface CursorSettings {
   apiKey?: string;
@@ -22,7 +32,11 @@ export interface CursorSettings {
   createNewAgentPerCall?: boolean;
   agentName?: string;
   mode?: 'agent' | 'plan';
-  local?: LocalAgentOptions;
+  /** Replaces Cursor's built-in harness prompt (local agents with server access only). */
+  systemPrompt?: string;
+  tools?: ToolName[];
+  disallowedTools?: ToolName[];
+  local?: CursorLocalSettings;
   cloud?: CloudAgentOptions;
   customTools?: Record<string, SDKCustomTool>;
   mcpServers?: Record<string, McpServerConfig>;
@@ -121,9 +135,13 @@ const agentDefinitionSchema = z
   })
   .strict();
 
+const toolNameSchema = z.custom<ToolName>((value) => typeof value === 'string');
+const toolNamesSchema = z.array(toolNameSchema);
+
 const localOptionsSchema = z
   .object({
     cwd: z.union([z.string(), z.array(z.string())]).optional(),
+    dirs: z.array(z.string()).optional(),
     autoReview: z.boolean().optional(),
     store: z.custom<NonNullable<LocalAgentOptions['store']>>().optional(),
     settingSources: z
@@ -157,8 +175,11 @@ const cloudOptionsSchema = z
       .optional(),
     workOnCurrentBranch: z.boolean().optional(),
     autoCreatePR: z.boolean().optional(),
+    openAsCursorGithubApp: z.boolean().optional(),
     skipReviewerRequest: z.boolean().optional(),
     envVars: z.record(z.string(), z.string()).optional(),
+    metadata: z.record(z.string(), z.string()).optional(),
+    agentServeAgent: z.string().optional(),
   })
   .strict();
 
@@ -172,6 +193,12 @@ export const cursorSettingsSchema: z.ZodType<CursorSettings> = z
     createNewAgentPerCall: z.boolean().optional(),
     agentName: z.string().optional(),
     mode: z.enum(['agent', 'plan']).optional(),
+    systemPrompt: z
+      .string()
+      .refine((value) => value.trim().length > 0, 'systemPrompt cannot be blank')
+      .optional(),
+    tools: toolNamesSchema.optional(),
+    disallowedTools: toolNamesSchema.optional(),
     local: localOptionsSchema.optional(),
     cloud: cloudOptionsSchema.optional(),
     customTools: customToolsSchema.optional(),
@@ -218,7 +245,46 @@ export const cursorSettingsSchema: z.ZodType<CursorSettings> = z
         message: 'customTools are supported only by local Cursor agents',
       });
     }
+    if (
+      settings.cloud &&
+      (settings.tools !== undefined || settings.disallowedTools !== undefined)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'tools and disallowedTools are supported only by local Cursor agents',
+      });
+    }
     const sdkAgentOptions = settings.sdkAgentOptions as Record<string, unknown> | undefined;
+    // Match the SDK option spread precedence, including explicit undefined overrides.
+    const effective = { ...settings, ...sdkAgentOptions };
+    const systemPrompt = effective.systemPrompt;
+    if (systemPrompt !== undefined) {
+      const path =
+        sdkAgentOptions && 'systemPrompt' in sdkAgentOptions
+          ? ['sdkAgentOptions', 'systemPrompt']
+          : ['systemPrompt'];
+      if (typeof systemPrompt !== 'string' || systemPrompt.trim().length === 0) {
+        context.addIssue({
+          code: 'custom',
+          path,
+          message: 'systemPrompt must be a non-empty string',
+        });
+      }
+      if (effective.cloud || settings.agentId?.startsWith('bc-')) {
+        context.addIssue({
+          code: 'custom',
+          path,
+          message: 'systemPrompt is supported only by local Cursor agents',
+        });
+      }
+      if (settings.agent) {
+        context.addIssue({
+          code: 'custom',
+          path,
+          message: 'Configure systemPrompt when creating or resuming the injected agent',
+        });
+      }
+    }
     for (const key of managedAgentOptionKeys) {
       if (sdkAgentOptions && key in sdkAgentOptions) {
         context.addIssue({
