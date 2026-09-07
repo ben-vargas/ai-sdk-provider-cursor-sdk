@@ -22,6 +22,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Replace the invalid live image-test PNG (bad IDAT CRC/zlib checksum) with a valid red PNG
+  and assert the recognized color. Add opt-in live SDK option smoke commands.
+
 - Backport tool allow/deny lists on create and resume, legacy workspace-array conversion plus
   `local.dirs`, cloud metadata/GitHub App PR settings, and nested subagent event normalization.
 - Backport the Node 22 packed-consumer smoke fix and cache resumed handles by effective prompt

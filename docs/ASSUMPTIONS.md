@@ -36,12 +36,38 @@ release unless release notes say so.
 | **A-16** | Should a resumed conversation preserve its current mode when no mode is configured? | Yes. The provider omits `SendOptions.mode` unless the call or model explicitly configures it, matching the SDK's documented omit-to-preserve behavior.                                                             | Resume a plan-mode agent with and without explicit `mode: 'plan'` and verify the effective mode. |
 | **A-17** | Can `partial-tool-call` arrive before `tool-call-started` or after completion?      | Yes. Known but uncorrelated/late partial snapshots are dropped with one compatibility warning rather than failing the stream; unknown semantic event types still fail closed.                                      | Capture real partial/start/completion ordering for built-in, MCP, and custom tools.              |
 
-## SDK 1.0.31 validation boundary
+## SDK 1.0.31 live validation (2026-09-07)
 
-The option drift guard, settings validation, create/resume forwarding, and prompt-aware resume
-cache are tested without a live key. This release does not claim live verification of the gated
-`systemPrompt` replacement or cloud Agent Serve skill discovery. Those require an enabled local
-account and a personal-key cloud Agent Serve environment respectively.
+Both the v7 (`1.0.1`) and v6 (`0.1.1`) worktrees passed all seven live integration tests on
+Node 24 with SDK `1.0.31` and `CURSOR_REASONING_MODEL=composer-2.5`: generation, streaming,
+inline images, usage, reasoning, session resume, and cancellation. The first run found a corrupt
+image fixture; the corrected PNG passes and is now checked for the expected red color.
+
+Real cloud generation with `cloud.agentServeAgent` also finished successfully on both branches.
+This verifies backend option acceptance and provider execution. Actual seeded skill discovery
+remains unverified: an attempt to upload a unique synthetic skill through Cursor's published
+`@cursor/july@0.1.102` user-store client failed at
+`POST https://api.cursor.com/v0/agent-serve-files/user/upload` with `Not found` (404), before any
+skill was uploaded.
+
+Real `systemPrompt` requests on both branches failed with
+`[invalid_argument] unknown option '--system-prompt'`. The installed SDK and npm's latest version
+were both `1.0.31`; its bundled runtime forwards `customSystemPrompt` to the server, and the SDK
+option documentation describes this server-side access gate. Successful harness replacement and
+resume with a replacement prompt remain blocked by server availability/access, not established
+by the mocked tests. The failure is propagated to the caller rather than silently falling back.
+
+Reproduce the option probes (requires a real API key; cloud creates then archives a test agent):
+
+```bash
+npm run smoke:sdk-options -- system-prompt
+npm run smoke:sdk-options -- cloud
+```
+
+The system-prompt probe uses a disposable workspace and explicit JSONL store, checks one unique
+response marker on creation, then a different marker after cross-provider resume. It exits with
+failure when the server rejects the option. The cloud probe tests option acceptance without
+claiming seeded skill discovery.
 
 ## Additional live-only surfaces
 
