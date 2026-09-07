@@ -5,7 +5,8 @@ differences from a conventional chat-completions provider are intentional.
 
 ## Prompts and conversations
 
-- Cursor root agents have no system-role field. System messages reject by default. `prefix` embeds
+- AI SDK system messages reject by default; use the explicit local-only, access-gated
+  `systemPrompt` setting to replace the Cursor harness prompt. `prefix` embeds
   them in user text and `ignore` drops them; neither preserves system authority.
 - Cursor agents own durable conversation state. Arbitrary AI SDK role history rejects by default.
   `ignore` sends only the newest user turn, while `flatten` serializes roles/tool data into lossy

@@ -138,7 +138,7 @@ retryable protocol-consistency `APICallError`. This usually indicates drift in `
 Actions:
 
 1. Record `error.data`, especially code, request ID, operation, and prompt excerpt.
-2. Reproduce against the pinned `@cursor/sdk@1.0.28`.
+2. Reproduce against the pinned `@cursor/sdk@1.0.31`.
 3. Inspect the weekly canary against `@cursor/sdk@latest`.
 4. Update event handling and its compile-time drift guard before bumping the pin.
 
@@ -172,3 +172,9 @@ const provider = createCursor({
 ```
 
 See [ASSUMPTIONS.md](ASSUMPTIONS.md) for behaviors that still require live-key validation.
+
+## Cursor SDK canary maintenance
+
+The scheduled canary monitors `main` only. When it identifies Cursor SDK drift, assess whether
+shared compatibility fixes should also be backported to the maintained `ai-sdk-v6` line. Validate
+each changed branch against its own AI SDK contract and update its exact Cursor SDK pin deliberately.

@@ -57,6 +57,13 @@ callbacks still require their own target-environment live smoke.
 | **A-16** | Should a resumed conversation preserve its current mode when no mode is configured? | Yes. The provider omits `SendOptions.mode` unless the call or model explicitly configures it, matching the SDK's documented omit-to-preserve behavior.                                                             | Resume a plan-mode agent with and without explicit `mode: 'plan'` and verify the effective mode. |
 | **A-17** | Can `partial-tool-call` arrive before `tool-call-started` or after completion?      | Yes. Known but uncorrelated/late partial snapshots are dropped with one compatibility warning rather than failing the stream; unknown semantic event types still fail closed.                                      | Capture real partial/start/completion ordering for built-in, MCP, and custom tools.              |
 
+## SDK 1.0.31 validation boundary
+
+The option drift guard, settings validation, create/resume forwarding, and prompt-aware resume
+cache are tested without a live key. This release does not claim live verification of the gated
+`systemPrompt` replacement or cloud Agent Serve skill discovery. Those require an enabled local
+account and a personal-key cloud Agent Serve environment respectively.
+
 ## Additional live-only surfaces
 
 The following are passed through according to published types and documentation but cannot be

@@ -1,6 +1,6 @@
 {
   "name": "ai-sdk-provider-cursor-sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AI SDK v7 provider for the Cursor Agent SDK (@cursor/sdk)",
   "type": "module",
   "sideEffects": false,
@@ -62,7 +62,7 @@
   "dependencies": {
     "@ai-sdk/provider": "^4.0.2",
     "@ai-sdk/provider-utils": "^5.0.5",
-    "@cursor/sdk": "1.0.28"
+    "@cursor/sdk": "1.0.31"
   },
   "peerDependencies": {
     "zod": "^4.1.8"

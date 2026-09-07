@@ -63,14 +63,16 @@ function canonicalizeToolList(tools: CursorSettings['tools']): string[] | null {
 }
 
 /**
- * Resume handles must not be shared across different tool restrictions. An
- * ID-only cache lets `tools: []` inherit an earlier unrestricted handle.
+ * Resume handles must not be shared across different prompts or tool restrictions.
+ * Include effective escape-hatch overrides so the key matches the SDK options.
  */
 export function resumeCacheKey(agentId: string, settings: CursorSettings): string {
+  const effective = { ...settings, ...settings.sdkAgentOptions };
   return JSON.stringify({
     agentId,
-    tools: canonicalizeToolList(settings.tools),
-    disallowedTools: canonicalizeToolList(settings.disallowedTools),
+    systemPrompt: effective.systemPrompt ?? null,
+    tools: canonicalizeToolList(effective.tools),
+    disallowedTools: canonicalizeToolList(effective.disallowedTools),
   });
 }
 
@@ -90,6 +92,10 @@ export class CursorAgentManager {
   async acquire(options: AcquireAgentOptions): Promise<CursorAgentCallScope> {
     const resumeId = options.callOptions.agentId ?? options.settings.agentId;
     if (resumeId) {
+      const effective = { ...options.settings, ...options.settings.sdkAgentOptions };
+      if (resumeId.startsWith('bc-') && effective.systemPrompt !== undefined) {
+        throw new Error('systemPrompt is supported only by local Cursor agents');
+      }
       const cacheKey = resumeCacheKey(resumeId, options.settings);
       const agentPromise = this.resumeAgent(resumeId, options);
       const agent = await agentPromise;
@@ -187,6 +193,7 @@ export class CursorAgentManager {
       ...runtime,
       ...(settings.mcpServers ? { mcpServers: settings.mcpServers } : {}),
       ...(settings.agents ? { agents: settings.agents } : {}),
+      ...(settings.systemPrompt !== undefined ? { systemPrompt: settings.systemPrompt } : {}),
       ...(settings.tools !== undefined ? { tools: settings.tools } : {}),
       ...(settings.disallowedTools !== undefined
         ? { disallowedTools: settings.disallowedTools }
@@ -201,6 +208,7 @@ export class CursorAgentManager {
       apiKey: options.apiKey,
       ...(settings.mcpServers ? { mcpServers: settings.mcpServers } : {}),
       ...(settings.agents ? { agents: settings.agents } : {}),
+      ...(settings.systemPrompt !== undefined ? { systemPrompt: settings.systemPrompt } : {}),
       ...(settings.tools !== undefined ? { tools: settings.tools } : {}),
       ...(settings.disallowedTools !== undefined
         ? { disallowedTools: settings.disallowedTools }
