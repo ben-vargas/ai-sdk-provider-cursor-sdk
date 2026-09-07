@@ -166,9 +166,9 @@ importing a non-exported subpath.
   their existing policy. Injected agents must be configured by their owner.
 - `cloud.agentServeAgent`: supported through the validated cloud settings at creation; Cursor
   persists the Agent Serve directory slug for cloud skill discovery.
-- Both additions are classified as mapped in the bidirectional SDK drift guard. Their provider
-  behavior is covered by mocked AI SDK calls; server access and cloud skill discovery need live
-  account validation.
+- Both additions are classified as mapped in the bidirectional SDK drift guard. Provider behavior is covered by mocked AI SDK calls. Live cloud option acceptance passed;
+  harness replacement was rejected by the server and seeded skill discovery is blocked by the
+  user-store upload endpoint. See the dated evidence in [ASSUMPTIONS.md](ASSUMPTIONS.md).
 
 ## Related documents
 

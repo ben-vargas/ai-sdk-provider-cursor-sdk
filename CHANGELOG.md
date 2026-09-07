@@ -27,6 +27,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Replace the invalid live image-test PNG (bad IDAT CRC/zlib checksum) with a valid red PNG
+  and assert the recognized color. Add opt-in live SDK option smoke commands.
+
 - Parse `npm pack --json` when Node 22 / npm 10 includes lifecycle output before the JSON.
 - Key resumed handles by agent ID, effective system prompt, and tool restrictions, including
   `sdkAgentOptions` overrides, so different configurations cannot inherit a mismatched handle.

@@ -57,7 +57,8 @@
     "test:coverage": "vitest run --coverage",
     "test:integration": "CURSOR_INTEGRATION=1 vitest run src/__tests__/integration",
     "smoke:consumer": "npm run build && node scripts/smoke-consumer.mjs",
-    "validate": "npm run build && npm run typecheck && npm run format && npm run lint && npm run test"
+    "validate": "npm run build && npm run typecheck && npm run format && npm run lint && npm run test",
+    "smoke:sdk-options": "npm run build && node scripts/smoke-sdk-options.mjs"
   },
   "dependencies": {
     "@ai-sdk/provider": "^4.0.2",
