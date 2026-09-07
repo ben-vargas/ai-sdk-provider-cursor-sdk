@@ -16,8 +16,35 @@ const npmEnvironment = {
 };
 let tarball;
 
+/**
+ * Node 22 / npm 10 still runs `prepare` during `npm pack` and prints that
+ * lifecycle output (tsup ANSI) before the `--json` array. Node 24 / npm 11
+ * typically emits JSON only. Isolate the payload so both lines pass.
+ */
+function parseNpmPackJson(stdout) {
+  const text = stdout.replace(/\u001b\[[0-9;]*m/g, '');
+  const start = text.search(/[\[{]/);
+  if (start === -1) {
+    throw new Error(`npm pack --json produced no JSON:\n${stdout}`);
+  }
+  const candidates = [text.slice(start)];
+  const lastStart = Math.max(text.lastIndexOf('['), text.lastIndexOf('{'));
+  if (lastStart > start) candidates.unshift(text.slice(lastStart));
+  let lastError;
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`npm pack --json produced unparseable output:\n${stdout}`);
+}
+
 try {
-  const packed = JSON.parse(
+  const packed = parseNpmPackJson(
     execFileSync(npm, ['pack', '--json', '--ignore-scripts'], {
       cwd: root,
       encoding: 'utf8',

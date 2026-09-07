@@ -1,5 +1,9 @@
 import { AgentNotFoundError } from '@cursor/sdk';
-import { CursorAgentManager, type AcquireAgentOptions } from './cursor-agent-manager.js';
+import {
+  CursorAgentManager,
+  resumeCacheKey,
+  type AcquireAgentOptions,
+} from './cursor-agent-manager.js';
 import { noopLogger } from './logger.js';
 import { FakeSDKAgent, loadDeltaFixture } from './__tests__/fixtures/fake-cursor-sdk.js';
 import {
@@ -46,8 +50,10 @@ describe('CursorAgentManager acquisition and ownership', () => {
         settings: {
           agentName: 'Provider agent',
           mode: 'plan',
-          local: { cwd: '/repo', autoReview: true },
+          local: { cwd: '/repo', dirs: ['/extra'], autoReview: true },
           customTools: { custom: customTool },
+          tools: ['shell', 'read'],
+          disallowedTools: ['delete'],
           mcpServers: { docs: { command: 'node', args: ['server.mjs'] } },
           agents: { reviewer: { description: 'review', prompt: 'Review' } },
           modelParams: [{ id: 'fast', value: 'false' }],
@@ -65,10 +71,67 @@ describe('CursorAgentManager acquisition and ownership', () => {
       apiKey: 'cursor-key',
       name: 'Provider agent',
       mode: 'agent',
-      local: { cwd: '/repo', autoReview: true, customTools: { custom: customTool } },
+      local: {
+        cwd: '/repo',
+        dirs: ['/extra'],
+        autoReview: true,
+        customTools: { custom: customTool },
+      },
+      tools: ['shell', 'read'],
+      disallowedTools: ['delete'],
       mcpServers: { docs: { command: 'node', args: ['server.mjs'] } },
       agents: { reviewer: { description: 'review', prompt: 'Review' } },
     });
+  });
+
+  it('migrates a legacy cwd array to cwd + dirs before calling the SDK', async () => {
+    mockAgentCreate.mockResolvedValue(fakeAgent());
+    const manager = new CursorAgentManager(noopLogger);
+    await manager.acquire(
+      acquireOptions({
+        settings: { local: { cwd: ['/repo', '/other'], dirs: ['/extra'] } },
+      })
+    );
+    expect(mockAgentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // Documented precedence: migrated `cwd` array extras first, explicit `dirs` after them.
+        local: { cwd: '/repo', dirs: ['/other', '/extra'] },
+      })
+    );
+    const passed = mockAgentCreate.mock.calls[0]?.[0] as { local?: { cwd?: unknown } };
+    expect(Array.isArray(passed.local?.cwd)).toBe(false);
+  });
+
+  it('passes an empty tools allow-list through to Agent.create', async () => {
+    mockAgentCreate.mockResolvedValue(fakeAgent());
+    const manager = new CursorAgentManager(noopLogger);
+    await manager.acquire(acquireOptions({ settings: { tools: [] } }));
+    expect(mockAgentCreate.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ tools: [] }));
+  });
+
+  it('forwards cloud metadata and openAsCursorGithubApp', async () => {
+    mockAgentCreate.mockResolvedValue(fakeAgent('bc-cloud'));
+    const manager = new CursorAgentManager(noopLogger);
+    await manager.acquire(
+      acquireOptions({
+        settings: {
+          cloud: {
+            repos: [{ url: 'https://example.test/repo' }],
+            metadata: { team: 'platform' },
+            openAsCursorGithubApp: true,
+          },
+        },
+      })
+    );
+    expect(mockAgentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cloud: {
+          repos: [{ url: 'https://example.test/repo' }],
+          metadata: { team: 'platform' },
+          openAsCursorGithubApp: true,
+        },
+      })
+    );
   });
 
   it('passes explicit local empty options when no runtime is configured', async () => {
@@ -103,6 +166,8 @@ describe('CursorAgentManager acquisition and ownership', () => {
           agentId: 'agent-settings',
           mcpServers: { docs: { command: 'docs' } },
           agents: { reviewer: { description: 'review', prompt: 'Review' } },
+          tools: [],
+          disallowedTools: ['mcp'],
           sdkAgentOptions: { name: 'resume name' },
         },
         callOptions: { agentId: 'agent-call' },
@@ -113,12 +178,14 @@ describe('CursorAgentManager acquisition and ownership', () => {
       apiKey: 'cursor-key',
       mcpServers: { docs: { command: 'docs' } },
       agents: { reviewer: { description: 'review', prompt: 'Review' } },
+      tools: [],
+      disallowedTools: ['mcp'],
       name: 'resume name',
     });
     expect(mockAgentCreate).not.toHaveBeenCalled();
   });
 
-  it('reuses one cached agent per model scope and one resumed handle per agent ID', async () => {
+  it('reuses one cached agent per model scope and one resumed handle per matching resume key', async () => {
     const created = fakeAgent('agent-created');
     const resumed = fakeAgent('agent-resumed');
     mockAgentCreate.mockResolvedValue(created);
@@ -138,6 +205,76 @@ describe('CursorAgentManager acquisition and ownership', () => {
       (await manager.acquire(acquireOptions({ callOptions: { agentId: 'agent-resumed' } }))).agent
     ).toBe(resumed);
     expect(mockAgentResume).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reuse a resumed handle when tools or disallowedTools differ', async () => {
+    const unrestricted = fakeAgent('agent-shared');
+    const allowNone = fakeAgent('agent-shared');
+    const denied = fakeAgent('agent-shared');
+    const allowListed = fakeAgent('agent-shared');
+    mockAgentResume
+      .mockResolvedValueOnce(unrestricted)
+      .mockResolvedValueOnce(allowNone)
+      .mockResolvedValueOnce(denied)
+      .mockResolvedValueOnce(allowListed);
+    const manager = new CursorAgentManager(noopLogger);
+
+    const first = await manager.acquire(
+      acquireOptions({ callOptions: { agentId: 'agent-shared' } })
+    );
+    const second = await manager.acquire(
+      acquireOptions({
+        callOptions: { agentId: 'agent-shared' },
+        settings: { tools: [] },
+      })
+    );
+    const third = await manager.acquire(
+      acquireOptions({
+        callOptions: { agentId: 'agent-shared' },
+        settings: { disallowedTools: ['shell'] },
+      })
+    );
+    const reusedAllowNone = await manager.acquire(
+      acquireOptions({
+        callOptions: { agentId: 'agent-shared' },
+        settings: { tools: [] },
+      })
+    );
+    const reusedOrdered = await manager.acquire(
+      acquireOptions({
+        callOptions: { agentId: 'agent-shared' },
+        settings: { tools: ['read', 'shell'] },
+      })
+    );
+    const reusedReordered = await manager.acquire(
+      acquireOptions({
+        callOptions: { agentId: 'agent-shared' },
+        settings: { tools: ['shell', 'read'] },
+      })
+    );
+
+    expect(first.agent).toBe(unrestricted);
+    expect(second.agent).toBe(allowNone);
+    expect(third.agent).toBe(denied);
+    expect(reusedAllowNone.agent).toBe(allowNone);
+    expect(reusedOrdered.agent).toBe(allowListed);
+    expect(reusedReordered.agent).toBe(allowListed);
+    expect(mockAgentResume).toHaveBeenCalledTimes(4);
+    expect(mockAgentResume).toHaveBeenNthCalledWith(1, 'agent-shared', { apiKey: 'cursor-key' });
+    expect(mockAgentResume).toHaveBeenNthCalledWith(2, 'agent-shared', {
+      apiKey: 'cursor-key',
+      tools: [],
+    });
+    expect(mockAgentResume).toHaveBeenNthCalledWith(3, 'agent-shared', {
+      apiKey: 'cursor-key',
+      disallowedTools: ['shell'],
+    });
+    expect(resumeCacheKey('agent-shared', { tools: ['read', 'shell'] })).toBe(
+      resumeCacheKey('agent-shared', { tools: ['shell', 'read'] })
+    );
+    expect(resumeCacheKey('agent-shared', {})).not.toBe(
+      resumeCacheKey('agent-shared', { tools: [] })
+    );
   });
 
   it('uses injected agents without taking ownership', async () => {
