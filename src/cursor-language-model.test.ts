@@ -222,12 +222,24 @@ describe('CursorLanguageModel streaming and generation', () => {
     const hidden = await model(new FakeSDKAgent(loadDeltaFixture('summary-events'))).doStream(
       callOptions()
     );
-    expect((await collect(hidden.stream)).some((part) => part.type === 'raw')).toBe(false);
+    const hiddenParts = await collect(hidden.stream);
+    expect(hiddenParts.some((part) => part.type === 'raw')).toBe(false);
 
     const visible = await model(new FakeSDKAgent(loadDeltaFixture('summary-events'))).doStream(
       callOptions({ includeRawChunks: true })
     );
-    expect((await collect(visible.stream)).filter((part) => part.type === 'raw')).toHaveLength(8);
+    const visibleParts = await collect(visible.stream);
+    expect(visibleParts.filter((part) => part.type === 'raw')).toHaveLength(8);
+
+    // Raw-only updates must not disturb completion, e.g. by checking tool-requests-listed's
+    // callCount against a fixture that has no tool lifecycle.
+    for (const parts of [hiddenParts, visibleParts]) {
+      expect(parts.some((part) => part.type === 'error')).toBe(false);
+      expect(parts.at(-1)).toMatchObject({
+        type: 'finish',
+        finishReason: { unified: 'stop', raw: 'finished' },
+      });
+    }
   });
 
   it('surfaces call and prompt-conversion warnings in stream and generate results', async () => {
