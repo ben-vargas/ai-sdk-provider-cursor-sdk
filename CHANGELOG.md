@@ -7,6 +7,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-28
+
+### Changed
+
+- Pin `@cursor/sdk` from `1.0.31` to `1.0.32`.
+
+### Fixed
+
+- Treat the new `tool-requests-listed` Cursor update, top-level or nested in `tool-call-delta`, as
+  a raw-only informational event. Previously its name matched the fail-closed unknown-event
+  heuristic, so a `1.0.32` stream that emitted it failed with a protocol-consistency error.
+
 ## [0.1.1] - 2026-09-07
 
 ### Added

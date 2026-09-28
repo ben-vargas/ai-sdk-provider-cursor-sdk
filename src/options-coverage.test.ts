@@ -70,6 +70,7 @@ type InteractionMappedType =
   | 'summary-started'
   | 'summary-completed'
   | 'user-message-appended'
+  | 'tool-requests-listed'
   | 'tool-call-delta';
 
 // `tool-call-delta.taskUpdate` carries its own narrower union, so it drifts independently of
@@ -82,7 +83,8 @@ type NestedTaskMappedType =
   | 'partial-tool-call'
   | 'tool-call-completed'
   | 'step-started'
-  | 'step-completed';
+  | 'step-completed'
+  | 'tool-requests-listed';
 
 type UnaccountedAgentKey = Exclude<keyof AgentOptions, AgentAccountedKey>;
 type StaleAgentKey = Exclude<AgentAccountedKey, keyof AgentOptions>;
