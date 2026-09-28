@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-09-28
+
 ### Changed
 
 - Pin `@cursor/sdk` from `1.0.31` to `1.0.32`.
