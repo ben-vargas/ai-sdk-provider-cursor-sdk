@@ -181,9 +181,12 @@ export function normalizeCursorUpdate(
       events.push(...normalizeCursorUpdate(normalizer, nested, depth + 1));
       break;
     }
+    // Raw-only. `tool-requests-listed` is an informational per-step count; each counted call
+    // still surfaces through its own tool-call-started/-completed lifecycle.
     case 'token-delta':
     case 'step-started':
     case 'step-completed':
+    case 'tool-requests-listed':
     case 'summary':
     case 'summary-started':
     case 'summary-completed':
