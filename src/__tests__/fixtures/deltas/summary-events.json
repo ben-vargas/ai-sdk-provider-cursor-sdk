@@ -3,6 +3,7 @@
   "events": [
     { "update": { "type": "token-delta", "tokens": 2 } },
     { "update": { "type": "step-started", "stepId": 1 } },
+    { "update": { "type": "tool-requests-listed", "callCount": 2 } },
     { "update": { "type": "step-completed", "stepId": 1, "stepDurationMs": 8 } },
     { "update": { "type": "summary-started" } },
     { "update": { "type": "summary", "summary": "short" } },

@@ -269,6 +269,30 @@ describe('normalizeCursorUpdate', () => {
     }
   });
 
+  it('keeps a nested tool-requests-listed raw-only without closing active text', () => {
+    const normalizer = new CursorEventNormalizer(false);
+    normalizeCursorUpdate(normalizer, { type: 'text-delta', text: 'working' });
+    const update = liveToolCallDelta({
+      type: 'tool-call-delta',
+      callId: 'call-task',
+      modelCallId: 'model-call-task',
+      taskUpdate: { type: 'tool-requests-listed', callCount: 3 },
+    });
+    expect(normalizeCursorUpdate(normalizer, update)).toEqual([
+      { kind: 'raw', value: update, conditional: true },
+      {
+        kind: 'raw',
+        value: { type: 'tool-requests-listed', callCount: 3, modelCallId: 'model-call-task' },
+        conditional: true,
+      },
+    ]);
+    expect(
+      normalizeCursorUpdate(normalizer, { type: 'text-delta', text: ' on' }).filter(
+        (event) => event.kind !== 'raw'
+      )
+    ).toEqual([{ kind: 'text-delta', id: 'txt-1', delta: ' on' }]);
+  });
+
   it('recurses tool-call-delta taskUpdate so nested subagent text and tools are visible', () => {
     const normalizer = new CursorEventNormalizer(false);
     const textEvents = normalizeCursorUpdate(

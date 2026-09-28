@@ -1,7 +1,7 @@
 # AI SDK v7/v6 gap analysis
 
 This document compares the union of AI SDK v7 (`LanguageModelV4` / `ProviderV4`) and AI SDK v6
-(`LanguageModelV3` / `ProviderV3`) with the public surface of `@cursor/sdk@1.0.31`, the version
+(`LanguageModelV3` / `ProviderV3`) with the public surface of `@cursor/sdk@1.0.32`, the version
 pinned on both maintained branches. It describes the AI SDK v7 behavior implemented on `main`; rows that differ for the
 `ai-sdk-v6` branch are marked.
 
@@ -155,7 +155,7 @@ path: usage still comes from `turn-ended` deltas and terminal `RunResult.usage`,
 the run being reported rather than to the agent's lifetime.
 
 `@cursor/sdk` declares `toTokenUsage` and `sumTokenUsage` in its internal `usage-types.d.ts`, but
-`@cursor/sdk@1.0.31` still does not export those functions from its public package entry point. The
+`@cursor/sdk@1.0.32` still does not export those functions from its public package entry point. The
 provider therefore performs the same documented field-wise fallback calculation locally rather than
 importing a non-exported subpath.
 
@@ -169,6 +169,15 @@ importing a non-exported subpath.
 - Both additions are classified as mapped in the bidirectional SDK drift guard. Provider behavior is covered by mocked AI SDK calls. Live cloud option acceptance passed;
   harness replacement was rejected by the server and seeded skill discovery is blocked by the
   user-store upload endpoint. See the dated evidence in [ASSUMPTIONS.md](ASSUMPTIONS.md).
+
+## Cursor SDK 1.0.32 events
+
+- `tool-requests-listed` (`{ callCount }`), at top level and inside `tool-call-delta.taskUpdate`:
+  raw-only. It reports how many tool calls the model requested in a step; each call still arrives
+  through its own `tool-call-started` / `tool-call-completed` lifecycle, so the count is not needed
+  to build tool parts. It is classified as mapped in both event drift-guard unions. Without this
+  classification its name matches the fail-closed unknown-event heuristic and aborts the stream.
+- 1.0.32 adds no new agent or send options.
 
 ## Related documents
 
