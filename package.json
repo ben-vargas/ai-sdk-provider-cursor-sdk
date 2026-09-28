@@ -63,7 +63,7 @@
   "dependencies": {
     "@ai-sdk/provider": "^3.0.0",
     "@ai-sdk/provider-utils": "^4.0.1",
-    "@cursor/sdk": "1.0.31"
+    "@cursor/sdk": "1.0.32"
   },
   "peerDependencies": {
     "zod": "^3.0.0 || ^4.0.0"

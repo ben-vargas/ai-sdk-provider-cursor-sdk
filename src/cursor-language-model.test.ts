@@ -227,7 +227,7 @@ describe('CursorLanguageModel streaming and generation', () => {
     const visible = await model(new FakeSDKAgent(loadDeltaFixture('summary-events'))).doStream(
       callOptions({ includeRawChunks: true })
     );
-    expect((await collect(visible.stream)).filter((part) => part.type === 'raw')).toHaveLength(7);
+    expect((await collect(visible.stream)).filter((part) => part.type === 'raw')).toHaveLength(8);
   });
 
   it('surfaces call and prompt-conversion warnings in stream and generate results', async () => {
