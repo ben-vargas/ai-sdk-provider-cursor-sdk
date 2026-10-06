@@ -1,7 +1,7 @@
 # AI SDK v7/v6 gap analysis
 
 This document compares the union of AI SDK v7 (`LanguageModelV4` / `ProviderV4`) and AI SDK v6
-(`LanguageModelV3` / `ProviderV3`) with the public surface of `@cursor/sdk@1.0.32`, the version
+(`LanguageModelV3` / `ProviderV3`) with the public surface of `@cursor/sdk@1.0.36`, the version
 pinned on both maintained branches. It describes the AI SDK v7 behavior implemented on `main`; rows that differ for the
 `ai-sdk-v6` branch are marked.
 
@@ -155,7 +155,7 @@ path: usage still comes from `turn-ended` deltas and terminal `RunResult.usage`,
 the run being reported rather than to the agent's lifetime.
 
 `@cursor/sdk` declares `toTokenUsage` and `sumTokenUsage` in its internal `usage-types.d.ts`, but
-`@cursor/sdk@1.0.32` still does not export those functions from its public package entry point. The
+`@cursor/sdk@1.0.36` still does not export those functions from its public package entry point. The
 provider therefore performs the same documented field-wise fallback calculation locally rather than
 importing a non-exported subpath.
 
@@ -178,6 +178,25 @@ importing a non-exported subpath.
   to build tool parts. It is classified as mapped in both event drift-guard unions. Without this
   classification its name matches the fail-closed unknown-event heuristic and aborts the stream.
 - 1.0.32 adds no new agent or send options.
+
+## Cursor SDK 1.0.35 options
+
+- `local.subagentInherit` (agent creation) and its per-send replacement `local.subagentInherit` on
+  `LocalSendOptions`: known-excluded. It opts `Task` child sessions into inheriting executor
+  overrides (`overrideReadExecutor`, `overrideShellExecutor`, …, or a per-child factory), a
+  reported workspace path, and the parent's allowed-tools / exclude-tools headers. The executor
+  interfaces are not published by the SDK, so the validated `local` settings do not model it.
+  Callers that need it at creation or resume can pass `sdkAgentOptions.local`, which replaces
+  `settings.local` as a whole. Both keys are classified as known-excluded in the drift guard.
+- Without `subagentInherit`, Cursor does not forward the parent's `tools` / `disallowedTools`
+  headers to `Task` children. This was already true on earlier pins.
+- `SDKCustomToolContext` gains an optional `sessionId`; it is passed through to custom tool
+  callbacks unchanged. 1.0.35 adds no new interaction event types.
+
+## Cursor SDK 1.0.36
+
+- No public type changes from 1.0.35 and no runtime dependency changes. The bundle update is
+  internal (regenerated backend message schemas); no options, events, or mapping changes.
 
 ## Related documents
 

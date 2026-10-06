@@ -62,9 +62,24 @@ function canonicalizeToolList(tools: CursorSettings['tools']): string[] | null {
   return tools === undefined ? null : [...tools].sort();
 }
 
+const objectIdentities = new WeakMap<object, number>();
+let nextObjectIdentity = 0;
+
+function objectIdentity(value: object | undefined): number | null {
+  if (value === undefined) return null;
+  let identity = objectIdentities.get(value);
+  if (identity === undefined) {
+    identity = ++nextObjectIdentity;
+    objectIdentities.set(value, identity);
+  }
+  return identity;
+}
+
 /**
  * Resume handles must not be shared across different prompts or tool restrictions.
  * Include effective escape-hatch overrides so the key matches the SDK options.
+ * `subagentInherit` decides whether `Task` children receive the tool restrictions and holds
+ * live executors, so it is keyed by object identity.
  */
 export function resumeCacheKey(agentId: string, settings: CursorSettings): string {
   const effective = { ...settings, ...settings.sdkAgentOptions };
@@ -73,6 +88,7 @@ export function resumeCacheKey(agentId: string, settings: CursorSettings): strin
     systemPrompt: effective.systemPrompt ?? null,
     tools: canonicalizeToolList(effective.tools),
     disallowedTools: canonicalizeToolList(effective.disallowedTools),
+    subagentInherit: objectIdentity(settings.sdkAgentOptions?.local?.subagentInherit),
   });
 }
 

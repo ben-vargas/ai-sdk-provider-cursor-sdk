@@ -277,6 +277,22 @@ describe('CursorAgentManager acquisition and ownership', () => {
     );
   });
 
+  it('separates resumed handles by subagentInherit identity', () => {
+    const inherit = { reportedWorkspacePath: '/' };
+    const withInherit = (subagentInherit: object) => ({
+      sdkAgentOptions: { local: { subagentInherit } },
+    });
+    expect(resumeCacheKey('agent-shared', withInherit(inherit))).toBe(
+      resumeCacheKey('agent-shared', withInherit(inherit))
+    );
+    expect(resumeCacheKey('agent-shared', withInherit(inherit))).not.toBe(
+      resumeCacheKey('agent-shared', withInherit({ reportedWorkspacePath: '/' }))
+    );
+    expect(resumeCacheKey('agent-shared', withInherit(inherit))).not.toBe(
+      resumeCacheKey('agent-shared', {})
+    );
+  });
+
   it('uses injected agents without taking ownership', async () => {
     const injected = fakeAgent('agent-injected');
     const manager = new CursorAgentManager(noopLogger);

@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-06
+
+### Changed
+
+- Pin `@cursor/sdk` from `1.0.32` to `1.0.36`.
+- Classify the new `local.subagentInherit` agent and send option as known-excluded in the SDK
+  drift guard. It is reachable through `sdkAgentOptions.local`; see the configuration reference.
+  `CursorLocalSettings` omits it so the type matches the validated settings, and resumed handles
+  are keyed by the `subagentInherit` object's identity.
+
 ## [0.1.2] - 2026-09-28
 
 ### Changed
