@@ -20,8 +20,9 @@ import type { CursorPromptHistoryMode, CursorSystemMessageMode } from './types.j
  * Provider-facing local options. `@cursor/sdk` 1.0.24+ types `cwd` as a single
  * string and adds `dirs` for extra workspace roots. Arrays remain accepted here
  * for back-compat and are migrated to `cwd` + `dirs` at the SDK call edge.
+ * `subagentInherit` is not modeled; pass it through `sdkAgentOptions.local`.
  */
-export type CursorLocalSettings = Omit<LocalAgentOptions, 'cwd'> & {
+export type CursorLocalSettings = Omit<LocalAgentOptions, 'cwd' | 'subagentInherit'> & {
   cwd?: string | string[];
 };
 

@@ -1,4 +1,4 @@
-import type { CursorSettings } from './settings.js';
+import type { CursorLocalSettings, CursorSettings } from './settings.js';
 import {
   cursorProviderOptionsSchema,
   cursorSettingsSchema,
@@ -145,6 +145,12 @@ describe('cursorSettingsSchema', () => {
     expect(cursorSettingsSchema.safeParse({ unknown: true }).success).toBe(false);
     expect(cursorSettingsSchema.safeParse({ local: { unknown: true } }).success).toBe(false);
     expect(cursorSettingsSchema.safeParse({ cloud: { unknown: true } }).success).toBe(false);
+  });
+
+  it('keeps subagentInherit out of the typed and validated local settings', () => {
+    // @ts-expect-error subagentInherit is reachable only through sdkAgentOptions.local.
+    const local: CursorLocalSettings = { subagentInherit: {} };
+    expect(cursorSettingsSchema.safeParse({ local }).success).toBe(false);
   });
 });
 
