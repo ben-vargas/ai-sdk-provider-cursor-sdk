@@ -31,7 +31,7 @@ type SendKnownExcludedKey = 'onStep' | 'mcpServers' | 'cloud';
 type SendAccountedKey = SendMappedKey | SendProviderManagedKey | SendKnownExcludedKey;
 
 type LocalSendMappedKey = 'force';
-type LocalSendKnownExcludedKey = 'customTools';
+type LocalSendKnownExcludedKey = 'customTools' | 'subagentInherit';
 type CloudSendKnownExcludedKey = 'envVars';
 
 type LocalAgentMappedKey =
@@ -43,6 +43,9 @@ type LocalAgentMappedKey =
   | 'sandboxOptions'
   | 'customTools'
   | 'enableAgentRetries';
+// `subagentInherit` carries live executor objects typed against unpublished SDK interfaces. It is
+// not modeled in the validated `local` settings; callers can pass it through `sdkAgentOptions.local`.
+type LocalAgentKnownExcludedKey = 'subagentInherit';
 type CloudAgentMappedKey =
   | 'env'
   | 'repos'
@@ -100,8 +103,14 @@ type StaleLocalSendKey = Exclude<
 >;
 type UnaccountedCloudSendKey = Exclude<keyof CloudSendOptions, CloudSendKnownExcludedKey>;
 type StaleCloudSendKey = Exclude<CloudSendKnownExcludedKey, keyof CloudSendOptions>;
-type UnaccountedLocalAgentKey = Exclude<keyof LocalAgentOptions, LocalAgentMappedKey>;
-type StaleLocalAgentKey = Exclude<LocalAgentMappedKey, keyof LocalAgentOptions>;
+type UnaccountedLocalAgentKey = Exclude<
+  keyof LocalAgentOptions,
+  LocalAgentMappedKey | LocalAgentKnownExcludedKey
+>;
+type StaleLocalAgentKey = Exclude<
+  LocalAgentMappedKey | LocalAgentKnownExcludedKey,
+  keyof LocalAgentOptions
+>;
 type UnaccountedCloudAgentKey = Exclude<keyof CloudAgentOptions, CloudAgentMappedKey>;
 type StaleCloudAgentKey = Exclude<CloudAgentMappedKey, keyof CloudAgentOptions>;
 type UnaccountedInteractionType = Exclude<InteractionUpdate['type'], InteractionMappedType>;
