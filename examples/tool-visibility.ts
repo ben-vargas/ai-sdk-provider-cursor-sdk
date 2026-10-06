@@ -3,7 +3,7 @@
  * Tool payloads are redacted and unstable, so applications should rely on IDs/flags and structural
  * summaries rather than fixed input or output fields.
  *
- * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides composer-2.5.
+ * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides grok-4.7.
  */
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -43,7 +43,7 @@ async function main(): Promise<void> {
 
   try {
     const result = streamText({
-      model: provider(process.env.CURSOR_MODEL ?? 'composer-2.5', {
+      model: provider(process.env.CURSOR_MODEL ?? 'grok-4.7', {
         mode: 'plan',
         local: { cwd: workspace, sandboxOptions: { enabled: true } },
       }),

@@ -3,7 +3,7 @@
  * Use this only after validating cloud access and repository permissions for your account.
  *
  * Prerequisites: set CURSOR_API_KEY, CURSOR_CLOUD_EXAMPLE=1, and CURSOR_CLOUD_REPO.
- * CURSOR_MODEL optionally overrides composer-2.5; CURSOR_CLOUD_REF defaults to main.
+ * CURSOR_MODEL optionally overrides grok-4.7; CURSOR_CLOUD_REF defaults to main.
  */
 import { generateText } from 'ai';
 import { createCursor } from '../src/index.js';
@@ -28,7 +28,7 @@ async function main(): Promise<void> {
   const provider = createCursor({ apiKey });
   try {
     const result = await generateText({
-      model: provider(process.env.CURSOR_MODEL ?? 'composer-2.5', {
+      model: provider(process.env.CURSOR_MODEL ?? 'grok-4.7', {
         mode: 'plan',
         createNewAgentPerCall: true,
         cloud: {

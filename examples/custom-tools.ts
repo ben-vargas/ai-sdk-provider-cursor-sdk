@@ -3,7 +3,7 @@
  * Use this for callbacks Cursor's own tool loop should invoke; AI SDK application tools are separate
  * and are not bridged by this provider. Live-smoke custom tools for your target runtime before release.
  *
- * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides composer-2.5.
+ * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides grok-4.7.
  */
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -24,7 +24,7 @@ async function main(): Promise<void> {
   const provider = createCursor({ apiKey, logger: false });
   try {
     const result = await generateText({
-      model: provider(process.env.CURSOR_MODEL ?? 'composer-2.5', {
+      model: provider(process.env.CURSOR_MODEL ?? 'grok-4.7', {
         mode: 'agent',
         local: { cwd: workspace, sandboxOptions: { enabled: true } },
         customTools: {

@@ -4,7 +4,7 @@
  * default local store is not reliable for cross-instance resume in the validated environment;
  * persistence requires an explicitly shared store and compatible workspace routing.
  *
- * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides composer-2.5.
+ * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides grok-4.7.
  */
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
@@ -24,7 +24,7 @@ async function main(): Promise<void> {
   const root = mkdtempSync(join(tmpdir(), 'cursor-session-example-'));
   const workspace = join(root, 'workspace');
   const storeDirectory = join(root, 'agent-store');
-  const modelId = process.env.CURSOR_MODEL ?? 'composer-2.5';
+  const modelId = process.env.CURSOR_MODEL ?? 'grok-4.7';
   mkdirSync(workspace, { recursive: true });
 
   try {

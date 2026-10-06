@@ -2,7 +2,7 @@
  * Demonstrates how Cursor terminal usage maps into AI SDK v7 usage totals and cache details.
  * Use mapped usage for portable accounting and Cursor metadata for provider-specific diagnostics.
  *
- * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides composer-2.5.
+ * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides grok-4.7.
  */
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -21,7 +21,7 @@ async function main(): Promise<void> {
   const provider = createCursor({ apiKey });
   try {
     const result = await generateText({
-      model: provider(process.env.CURSOR_MODEL ?? 'composer-2.5', {
+      model: provider(process.env.CURSOR_MODEL ?? 'grok-4.7', {
         mode: 'plan',
         local: { cwd: workspace },
       }),
