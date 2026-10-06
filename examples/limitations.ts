@@ -3,13 +3,13 @@
  * Use this when migrating an integration that depends on sampling controls, system/history
  * policies, application tools, or schema-constrained output.
  *
- * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides composer-2.5.
+ * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides grok-4.7.
  */
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Output, generateText, tool } from 'ai';
+import { NoObjectGeneratedError, Output, generateText, tool } from 'ai';
 import { z } from 'zod';
 import { createCursor } from '../src/index.js';
 
@@ -27,7 +27,7 @@ async function main(): Promise<void> {
 
   const workspace = mkdtempSync(join(tmpdir(), 'cursor-limitations-example-'));
   const provider = createCursor({ apiKey, logger: false });
-  const modelId = process.env.CURSOR_MODEL ?? 'composer-2.5';
+  const modelId = process.env.CURSOR_MODEL ?? 'grok-4.7';
   const freshModel = (settings = {}) =>
     provider(modelId, {
       mode: 'plan',
@@ -81,13 +81,20 @@ async function main(): Promise<void> {
     assert.equal(applicationToolExecuted, false);
     printWarnings('AI SDK application tools are not bridged', applicationTools.warnings);
 
-    const structured = await generateText({
-      model: freshModel(),
-      prompt: 'Return only this JSON object with no markdown: {"status":"ready"}',
-      output: Output.object({ schema: z.object({ status: z.string() }) }),
-    });
-    printWarnings('Structured output is prompt-based, not guaranteed', structured.warnings);
-    console.log('Client-validated output:', structured.output);
+    // Cursor cannot constrain output to a schema, so the model may still reply with prose. The AI
+    // SDK then rejects with NoObjectGeneratedError, which applications must handle.
+    try {
+      const structured = await generateText({
+        model: freshModel(),
+        prompt: 'Report that the service status is ready, as a JSON object with a "status" field.',
+        output: Output.object({ schema: z.object({ status: z.string() }) }),
+      });
+      printWarnings('Structured output is prompt-based, not guaranteed', structured.warnings);
+      console.log('Client-validated output:', structured.output);
+    } catch (error) {
+      if (!NoObjectGeneratedError.isInstance(error)) throw error;
+      console.log('\nStructured output failed client-side validation; raw text:', error.text);
+    }
   } finally {
     await provider.close();
     rmSync(workspace, { recursive: true, force: true });

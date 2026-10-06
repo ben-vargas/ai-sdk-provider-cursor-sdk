@@ -3,7 +3,7 @@
  * Raw Cursor events are unstable diagnostic data, not an application schema; summarize event types
  * instead of persisting or coupling code to entire payloads.
  *
- * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides composer-2.5.
+ * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides grok-4.7.
  */
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -33,7 +33,7 @@ async function main(): Promise<void> {
 
   try {
     const result = streamText({
-      model: provider(process.env.CURSOR_MODEL ?? 'composer-2.5', {
+      model: provider(process.env.CURSOR_MODEL ?? 'grok-4.7', {
         mode: 'plan',
         local: { cwd: workspace },
       }),

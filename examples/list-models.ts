@@ -1,6 +1,6 @@
 /**
  * Lists the model catalog available to the current Cursor account.
- * Use account-specific discovery before selecting models or variants; composer-2.5 is this suite's
+ * Use account-specific discovery before selecting models or variants; grok-4.7 is this suite's
  * recommended default but model access is not uniform across accounts.
  *
  * Prerequisite: set CURSOR_API_KEY.
@@ -18,7 +18,7 @@ async function main(): Promise<void> {
     const models = await Cursor.models.list({ apiKey });
     console.log(`Available models (${models.length}):`);
     for (const model of models) {
-      const recommended = model.id === 'composer-2.5' ? ' [recommended default]' : '';
+      const recommended = model.id === 'grok-4.7' ? ' [recommended default]' : '';
       console.log(`\n- ${model.id}${recommended}: ${model.displayName}`);
       if (model.aliases?.length) console.log(`  aliases: ${model.aliases.join(', ')}`);
       for (const parameter of model.parameters ?? []) {
@@ -34,8 +34,8 @@ async function main(): Promise<void> {
       }
     }
 
-    if (!models.some((model) => model.id === 'composer-2.5')) {
-      console.warn('composer-2.5 was not returned for this account; choose an available model ID.');
+    if (!models.some((model) => model.id === 'grok-4.7')) {
+      console.warn('grok-4.7 was not returned for this account; choose an available model ID.');
     }
   } catch (error) {
     if (error instanceof AuthenticationError) {

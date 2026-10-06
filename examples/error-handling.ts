@@ -3,7 +3,7 @@
  * Use this pattern when an application persists agent IDs and needs to start fresh after eviction.
  * Authentication and externally busy cloud-agent branches are documented alongside the live stale case.
  *
- * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides composer-2.5.
+ * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides grok-4.7.
  */
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
@@ -50,7 +50,7 @@ async function main(): Promise<void> {
   try {
     try {
       await generateText({
-        model: staleProvider(process.env.CURSOR_MODEL ?? 'composer-2.5', {
+        model: staleProvider(process.env.CURSOR_MODEL ?? 'grok-4.7', {
           agentId: 'known-missing-local-agent',
           mode: 'plan',
           sdkAgentOptions: {
@@ -78,7 +78,7 @@ async function main(): Promise<void> {
   const recoveryProvider = createCursor({ apiKey, logger: false });
   try {
     const recovered = await generateText({
-      model: recoveryProvider(process.env.CURSOR_MODEL ?? 'composer-2.5', {
+      model: recoveryProvider(process.env.CURSOR_MODEL ?? 'grok-4.7', {
         mode: 'plan',
         local: {
           cwd: workspace,

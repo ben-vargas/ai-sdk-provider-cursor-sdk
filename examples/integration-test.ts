@@ -3,7 +3,7 @@
  * It verifies generation, streaming, same-model continuity, and abort propagation without using
  * the caller's repository. It never attempts default-store cross-instance resume.
  *
- * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides composer-2.5.
+ * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides grok-4.7.
  */
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -42,7 +42,7 @@ async function main(): Promise<void> {
 
   const workspace = mkdtempSync(join(tmpdir(), 'cursor-contract-smoke-'));
   const provider = createCursor({ apiKey, logger: false });
-  const selectedModel = process.env.CURSOR_MODEL ?? 'composer-2.5';
+  const selectedModel = process.env.CURSOR_MODEL ?? 'grok-4.7';
   try {
     const model = provider(selectedModel, { mode: 'plan', local: { cwd: workspace } });
     const first = await generateText({
@@ -92,11 +92,15 @@ async function main(): Promise<void> {
         prompt: 'Write a long, detailed technical essay with at least twelve substantial sections.',
         abortSignal: controller.signal,
       });
+      let sawAbortPart = false;
+      for await (const part of aborted.fullStream) {
+        if (part.type === 'text-delta') controller.abort(abortReason);
+        if (part.type === 'abort') sawAbortPart = true;
+      }
+      assert.ok(sawAbortPart, 'Aborted stream did not end with an abort part.');
       try {
-        for await (const part of aborted.fullStream) {
-          if (part.type === 'text-delta') controller.abort(abortReason);
-        }
-        assert.fail('Aborted stream completed without rejecting.');
+        await aborted.text;
+        assert.fail('Aborted stream resolved without rejecting.');
       } catch (error) {
         assert.equal(error, abortReason);
       }
