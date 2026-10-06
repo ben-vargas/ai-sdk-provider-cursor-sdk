@@ -2,7 +2,7 @@
  * Demonstrates the smallest useful AI SDK v6 generateText call with Cursor result metadata.
  * Start here when learning the provider's text, finish-reason, usage, and terminal-run contracts.
  *
- * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides composer-2.5.
+ * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides grok-4.7.
  */
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -21,7 +21,7 @@ async function main(): Promise<void> {
   const provider = createCursor({ apiKey });
   try {
     const result = await generateText({
-      model: provider(process.env.CURSOR_MODEL ?? 'composer-2.5', {
+      model: provider(process.env.CURSOR_MODEL ?? 'grok-4.7', {
         mode: 'plan',
         local: { cwd: workspace },
       }),

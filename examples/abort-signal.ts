@@ -2,7 +2,7 @@
  * Demonstrates aborting an in-flight Cursor stream while preserving the caller's exact abort reason.
  * Use this pattern when a request should stop as soon as your application cancels it.
  *
- * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides composer-2.5.
+ * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides grok-4.7.
  */
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -28,7 +28,7 @@ async function main(): Promise<void> {
 
   try {
     const result = streamText({
-      model: provider(process.env.CURSOR_MODEL ?? 'composer-2.5', {
+      model: provider(process.env.CURSOR_MODEL ?? 'grok-4.7', {
         mode: 'plan',
         local: { cwd: workspace },
       }),
@@ -37,22 +37,38 @@ async function main(): Promise<void> {
       abortSignal: controller.signal,
     });
 
+    // Once the stream has started, the AI SDK ends `fullStream` with an `abort` part and the
+    // result promises reject with the caller's original reason. An abort before the stream starts
+    // (for example the fallback during slow agent acquisition) rejects `fullStream` itself.
+    let abortSurface: 'abort part' | 'stream rejection' | undefined;
     try {
       for await (const part of result.fullStream) {
-        if (part.type === 'text-delta') {
+        if (part.type === 'text-delta' && !controller.signal.aborted) {
           sawTextDelta = true;
           process.stdout.write(part.text);
           controller.abort(reason);
         }
+        if (part.type === 'abort') abortSurface = 'abort part';
       }
-      throw new Error('The stream completed instead of rejecting after abort.');
     } catch (error) {
       assert.equal(error, reason, 'The provider must reject with the original abort reason.');
+      abortSurface = 'stream rejection';
       rejectedWithOriginalReason = true;
+    }
+    assert.ok(abortSurface, 'The stream should end with an abort part or reject after abort.');
+    if (abortSurface === 'abort part') {
+      try {
+        await result.text;
+        throw new Error('The result resolved instead of rejecting after abort.');
+      } catch (error) {
+        assert.equal(error, reason, 'The provider must reject with the original abort reason.');
+        rejectedWithOriginalReason = true;
+      }
     }
 
     console.log('\nAbort verification:', {
       trigger: sawTextDelta ? 'first text delta' : '30-second fallback',
+      abortSurface,
       rejectedWithOriginalReason,
     });
   } finally {

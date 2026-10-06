@@ -16,6 +16,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   drift guard. It is reachable through `sdkAgentOptions.local`; see the configuration reference.
   `CursorLocalSettings` omits it so the type matches the validated settings, and resumed handles
   are keyed by the `subagentInherit` object's identity.
+- Examples default to `grok-4.7` (still overridable with `CURSOR_MODEL`).
+- The image example's bundled fixture is now a PNG. Cursor delivers SVG to the model as a file to
+  read rather than as an image, so the example dropped SVG from its accepted extensions.
+- Raise the `ai` dev dependency to `^6.0.301`. `6.0.3` rejected an aborted result with
+  `NoOutputGeneratedError` instead of the caller's abort reason.
+
+### Fixed
+
+- `abort-signal.ts` and `integration-test.ts` no longer expect iterating `fullStream` to throw on
+  abort. The AI SDK ends a started stream with an `abort` part, and an abort before the stream
+  starts rejects it; the examples now accept either and check the caller's original abort reason.
+- `limitations.ts` handles `NoObjectGeneratedError` when a model replies with prose instead of
+  JSON, instead of crashing, and uses a less directive structured-output prompt.
 
 ## [0.1.2] - 2026-09-28
 

@@ -2,7 +2,7 @@
  * Demonstrates native multi-turn continuity by reusing one Cursor model instance.
  * Use fresh single-user prompts on the same model instead of replaying an AI SDK transcript.
  *
- * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides composer-2.5.
+ * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides grok-4.7.
  */
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -21,7 +21,7 @@ async function main(): Promise<void> {
   const workspace = mkdtempSync(join(tmpdir(), 'cursor-conversation-example-'));
   const provider = createCursor({ apiKey, logger: false });
   try {
-    const model = provider(process.env.CURSOR_MODEL ?? 'composer-2.5', {
+    const model = provider(process.env.CURSOR_MODEL ?? 'grok-4.7', {
       mode: 'plan',
       local: { cwd: workspace },
     });
