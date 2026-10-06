@@ -11,7 +11,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- Pin `@cursor/sdk` from `1.0.32` to `1.0.35`.
+- Pin `@cursor/sdk` from `1.0.32` to `1.0.36`.
 - Classify the new `local.subagentInherit` agent and send option as known-excluded in the SDK
   drift guard. It is reachable through `sdkAgentOptions.local`; see the configuration reference.
 
