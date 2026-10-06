@@ -37,29 +37,38 @@ async function main(): Promise<void> {
       abortSignal: controller.signal,
     });
 
-    // The AI SDK ends `fullStream` with an `abort` part rather than throwing; the result
-    // promises reject with the caller's original abort reason.
-    let sawAbortPart = false;
-    for await (const part of result.fullStream) {
-      if (part.type === 'text-delta' && !controller.signal.aborted) {
-        sawTextDelta = true;
-        process.stdout.write(part.text);
-        controller.abort(reason);
-      }
-      if (part.type === 'abort') sawAbortPart = true;
-    }
-    assert.ok(sawAbortPart, 'The stream should end with an abort part.');
+    // Once the stream has started, the AI SDK ends `fullStream` with an `abort` part and the
+    // result promises reject with the caller's original reason. An abort before the stream starts
+    // (for example the fallback during slow agent acquisition) rejects `fullStream` itself.
+    let abortSurface: 'abort part' | 'stream rejection' | undefined;
     try {
-      await result.text;
-      throw new Error('The result resolved instead of rejecting after abort.');
+      for await (const part of result.fullStream) {
+        if (part.type === 'text-delta' && !controller.signal.aborted) {
+          sawTextDelta = true;
+          process.stdout.write(part.text);
+          controller.abort(reason);
+        }
+        if (part.type === 'abort') abortSurface = 'abort part';
+      }
     } catch (error) {
       assert.equal(error, reason, 'The provider must reject with the original abort reason.');
+      abortSurface = 'stream rejection';
       rejectedWithOriginalReason = true;
+    }
+    assert.ok(abortSurface, 'The stream should end with an abort part or reject after abort.');
+    if (abortSurface === 'abort part') {
+      try {
+        await result.text;
+        throw new Error('The result resolved instead of rejecting after abort.');
+      } catch (error) {
+        assert.equal(error, reason, 'The provider must reject with the original abort reason.');
+        rejectedWithOriginalReason = true;
+      }
     }
 
     console.log('\nAbort verification:', {
       trigger: sawTextDelta ? 'first text delta' : '30-second fallback',
-      sawAbortPart,
+      abortSurface,
       rejectedWithOriginalReason,
     });
   } finally {

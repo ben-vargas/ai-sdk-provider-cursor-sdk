@@ -92,17 +92,26 @@ async function main(): Promise<void> {
         prompt: 'Write a long, detailed technical essay with at least twelve substantial sections.',
         abortSignal: controller.signal,
       });
+      // A started stream ends with an `abort` part; an abort before it starts rejects it.
       let sawAbortPart = false;
-      for await (const part of aborted.fullStream) {
-        if (part.type === 'text-delta') controller.abort(abortReason);
-        if (part.type === 'abort') sawAbortPart = true;
-      }
-      assert.ok(sawAbortPart, 'Aborted stream did not end with an abort part.');
+      let streamRejected = false;
       try {
-        await aborted.text;
-        assert.fail('Aborted stream resolved without rejecting.');
+        for await (const part of aborted.fullStream) {
+          if (part.type === 'text-delta') controller.abort(abortReason);
+          if (part.type === 'abort') sawAbortPart = true;
+        }
       } catch (error) {
         assert.equal(error, abortReason);
+        streamRejected = true;
+      }
+      assert.ok(sawAbortPart || streamRejected, 'Aborted stream neither ended nor rejected.');
+      if (sawAbortPart) {
+        try {
+          await aborted.text;
+          assert.fail('Aborted stream resolved without rejecting.');
+        } catch (error) {
+          assert.equal(error, abortReason);
+        }
       }
     } finally {
       clearTimeout(fallback);
