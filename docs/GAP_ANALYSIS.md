@@ -1,7 +1,7 @@
 # AI SDK v7/v6 gap analysis
 
 This document compares the union of AI SDK v7 (`LanguageModelV4` / `ProviderV4`) and AI SDK v6
-(`LanguageModelV3` / `ProviderV3`) with the public surface of `@cursor/sdk@1.0.35`, the version
+(`LanguageModelV3` / `ProviderV3`) with the public surface of `@cursor/sdk@1.0.36`, the version
 pinned on both maintained branches. It describes the AI SDK v7 behavior implemented on `main`; rows that differ for the
 `ai-sdk-v6` branch are marked.
 
@@ -155,7 +155,7 @@ path: usage still comes from `turn-ended` deltas and terminal `RunResult.usage`,
 the run being reported rather than to the agent's lifetime.
 
 `@cursor/sdk` declares `toTokenUsage` and `sumTokenUsage` in its internal `usage-types.d.ts`, but
-`@cursor/sdk@1.0.35` still does not export those functions from its public package entry point. The
+`@cursor/sdk@1.0.36` still does not export those functions from its public package entry point. The
 provider therefore performs the same documented field-wise fallback calculation locally rather than
 importing a non-exported subpath.
 
@@ -192,6 +192,11 @@ importing a non-exported subpath.
   headers to `Task` children. This was already true on earlier pins.
 - `SDKCustomToolContext` gains an optional `sessionId`; it is passed through to custom tool
   callbacks unchanged. 1.0.35 adds no new interaction event types.
+
+## Cursor SDK 1.0.36
+
+- No public type changes from 1.0.35 and no runtime dependency changes. The bundle update is
+  internal (regenerated backend message schemas); no options, events, or mapping changes.
 
 ## Related documents
 
