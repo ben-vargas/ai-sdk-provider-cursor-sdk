@@ -2,7 +2,7 @@
  * Demonstrates aborting an in-flight Cursor stream while preserving the caller's exact abort reason.
  * Use this pattern when a request should stop as soon as your application cancels it.
  *
- * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides composer-2.5.
+ * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides grok-4.7.
  */
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -28,7 +28,7 @@ async function main(): Promise<void> {
 
   try {
     const result = streamText({
-      model: provider(process.env.CURSOR_MODEL ?? 'composer-2.5', {
+      model: provider(process.env.CURSOR_MODEL ?? 'grok-4.7', {
         mode: 'plan',
         local: { cwd: workspace },
       }),
@@ -37,15 +37,21 @@ async function main(): Promise<void> {
       abortSignal: controller.signal,
     });
 
-    try {
-      for await (const part of result.fullStream) {
-        if (part.type === 'text-delta') {
-          sawTextDelta = true;
-          process.stdout.write(part.text);
-          controller.abort(reason);
-        }
+    // The AI SDK ends `fullStream` with an `abort` part rather than throwing; the result
+    // promises reject with the caller's original abort reason.
+    let sawAbortPart = false;
+    for await (const part of result.fullStream) {
+      if (part.type === 'text-delta' && !controller.signal.aborted) {
+        sawTextDelta = true;
+        process.stdout.write(part.text);
+        controller.abort(reason);
       }
-      throw new Error('The stream completed instead of rejecting after abort.');
+      if (part.type === 'abort') sawAbortPart = true;
+    }
+    assert.ok(sawAbortPart, 'The stream should end with an abort part.');
+    try {
+      await result.text;
+      throw new Error('The result resolved instead of rejecting after abort.');
     } catch (error) {
       assert.equal(error, reason, 'The provider must reject with the original abort reason.');
       rejectedWithOriginalReason = true;
@@ -53,6 +59,7 @@ async function main(): Promise<void> {
 
     console.log('\nAbort verification:', {
       trigger: sawTextDelta ? 'first text delta' : '30-second fallback',
+      sawAbortPart,
       rejectedWithOriginalReason,
     });
   } finally {

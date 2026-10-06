@@ -10,9 +10,8 @@ export CURSOR_API_KEY="your-key"
 npx tsx examples/basic-usage.ts
 ```
 
-Every model example uses `process.env.CURSOR_MODEL ?? 'composer-2.5'`. `composer-2.5` is the
-recommended default because it currently offers the best quota/cost fit for this suite; set
-`CURSOR_MODEL` only when your account exposes another model you need to exercise. Run
+Every model example uses `process.env.CURSOR_MODEL ?? 'grok-4.7'`. `grok-4.7` is the suite's
+default; set `CURSOR_MODEL` when your account exposes another model you need to exercise. Run
 [`list-models.ts`](list-models.ts) to discover account-specific access.
 
 Examples that need local Cursor access create a disposable workspace under the operating system's

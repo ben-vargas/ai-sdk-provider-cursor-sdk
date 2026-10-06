@@ -2,7 +2,7 @@
  * Demonstrates AI SDK v7 streaming, including delta count, terminal usage, and Cursor metadata.
  * Use this when rendering output incrementally while retaining the final run contract.
  *
- * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides composer-2.5.
+ * Prerequisite: set CURSOR_API_KEY. CURSOR_MODEL optionally overrides grok-4.7.
  */
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -24,7 +24,7 @@ async function main(): Promise<void> {
 
   try {
     const result = streamText({
-      model: provider(process.env.CURSOR_MODEL ?? 'composer-2.5', {
+      model: provider(process.env.CURSOR_MODEL ?? 'grok-4.7', {
         mode: 'plan',
         local: { cwd: workspace },
       }),
