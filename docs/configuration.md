@@ -134,6 +134,10 @@ Local runtime options:
 | `customTools`        | `Record<string, SDKCustomTool>`                                    | Local in-process tools registered through Cursor.                                                                                                                               |
 | `enableAgentRetries` | `boolean`                                                          | Cursor transport/stall retry policy.                                                                                                                                            |
 
+Cursor's `local.subagentInherit` (`@cursor/sdk` 1.0.35+) is not modeled here. It takes executor
+objects typed against unpublished SDK interfaces; pass it through `sdkAgentOptions.local` if you
+need `Task` children to inherit executor overrides or the parent's `tools` / `disallowedTools`.
+
 When both `local` and `cloud` are absent, the provider explicitly creates with `local: {}` rather
 than relying on undocumented omit-both behavior.
 
