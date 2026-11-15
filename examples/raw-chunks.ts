@@ -30,6 +30,7 @@ async function main(): Promise<void> {
   const provider = createCursor({ apiKey });
   const eventCounts = new Map<string, number>();
   let text = '';
+  let startsTextBlock = false;
 
   try {
     const result = streamText({
@@ -46,9 +47,11 @@ async function main(): Promise<void> {
         const type = rawEventType(part.rawValue);
         eventCounts.set(type, (eventCounts.get(type) ?? 0) + 1);
       } else if (part.type === 'text-start') {
-        // Cursor starts a new text block after a tool call; keep the blocks apart.
-        if (text) text += '\n\n';
+        startsTextBlock = true;
       } else if (part.type === 'text-delta') {
+        // Cursor starts a new text block after reasoning or a tool call; keep the blocks apart.
+        if (startsTextBlock && text) text += '\n\n';
+        startsTextBlock = false;
         text += part.text;
       }
     }

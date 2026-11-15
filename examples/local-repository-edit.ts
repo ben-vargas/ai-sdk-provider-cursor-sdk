@@ -63,6 +63,7 @@ async function main(): Promise<void> {
   >();
   const toolResults = new Map<string, { providerExecuted?: boolean; dynamic?: boolean }>();
   let assistantText = '';
+  let startsTextBlock = false;
 
   try {
     const result = streamText({
@@ -87,9 +88,11 @@ async function main(): Promise<void> {
           dynamic: part.dynamic,
         });
       } else if (part.type === 'text-start') {
-        // Cursor starts a new text block after a tool call; keep the blocks apart.
-        if (assistantText) assistantText += '\n\n';
+        startsTextBlock = true;
       } else if (part.type === 'text-delta') {
+        // Cursor starts a new text block after reasoning or a tool call; keep the blocks apart.
+        if (startsTextBlock && assistantText) assistantText += '\n\n';
+        startsTextBlock = false;
         assistantText += part.text;
       }
     }
