@@ -30,6 +30,7 @@ async function main(): Promise<void> {
   const provider = createCursor({ apiKey });
   const eventCounts = new Map<string, number>();
   let text = '';
+  let startsTextBlock = false;
 
   try {
     const result = streamText({
@@ -45,12 +46,17 @@ async function main(): Promise<void> {
       if (part.type === 'raw') {
         const type = rawEventType(part.rawValue);
         eventCounts.set(type, (eventCounts.get(type) ?? 0) + 1);
+      } else if (part.type === 'text-start') {
+        startsTextBlock = true;
       } else if (part.type === 'text-delta') {
+        // Cursor starts a new text block after reasoning or a tool call; keep the blocks apart.
+        if (startsTextBlock && text) text += '\n\n';
+        startsTextBlock = false;
         text += part.text;
       }
     }
 
-    console.log('Assistant response:', text);
+    console.log('Assistant response:\n', text);
     console.log('Redacted raw event counts:', Object.fromEntries(eventCounts));
     console.log('Warnings:', await result.warnings);
     console.log('Cursor metadata:', (await result.providerMetadata)?.cursor);

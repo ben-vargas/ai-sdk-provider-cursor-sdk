@@ -45,7 +45,12 @@ async function main(): Promise<void> {
     });
 
     const metadata = result.providerMetadata?.cursor;
-    console.log('Read-only repository report:\n', result.text);
+    // Cursor can return several text blocks in one step, such as a note before a tool call.
+    // `result.text` joins them with no separator, so join the blocks explicitly for display.
+    const text = result.content
+      .flatMap((part) => (part.type === 'text' && part.text ? [part.text] : []))
+      .join('\n\n');
+    console.log('Read-only repository report:\n', text);
     console.log('Cloud run metadata:', {
       agentId: metadata?.agentId,
       runId: metadata?.runId,
