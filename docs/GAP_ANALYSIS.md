@@ -2,7 +2,7 @@
 
 This document compares the union of AI SDK v7 (`LanguageModelV4` / `ProviderV4`) and AI SDK v6
 (`LanguageModelV3` / `ProviderV3`) with the public surface of `@cursor/sdk@1.4.0`, the version
-pinned on `main`. It describes the AI SDK v7 behavior implemented on `main`; rows that differ for the
+pinned on both maintained branches. It describes the AI SDK v7 behavior implemented on `main`; rows that differ for the
 `ai-sdk-v6` branch are marked.
 
 This document defaults to the v7 `main` behavior. On the `ai-sdk-v6` branch, v7-only rows do not
@@ -275,9 +275,11 @@ Other surface changes, none used by the provider:
 - `teamId` is also accepted by the static list, get, run-lookup, archive/delete, account, and
   catalog calls, none of which the provider calls.
 - `@cursor/sdk` moves `zod` from a dependency (`^3.25.0`) to a peer dependency
-  (`^3.25.0 || ^4.0.0`, 1.0.38), so it resolves to the zod 4 package this provider already
-  requires instead of installing its own zod 3. The SDK's public schemas still use the zod 3 API
-  from that package (`zod/v3`).
+  (`^3.25.0 || ^4.0.0`, 1.0.38), so it resolves to the application's zod instead of installing
+  its own zod 3. It imports the `zod/v3` and `zod/v4` entry points, which exist from zod 3.25; its
+  public schemas still use the zod 3 API (`zod/v3`). `main` already requires zod 4. The
+  `ai-sdk-v6` branch accepted zod `^3.0.0` and now requires `^3.25.76 || ^4.1.8`, the range `ai` v6
+  and `@ai-sdk/provider-utils` already impose.
 - New `FileSystem` helpers and errors (`overlayFs`, `tempFs`, `createFileSystemTools`,
   `FileNotFoundError`, …) are exported for building an `fs` tree.
 - The `anysphere-source` conditional export is removed from the SDK's package entry points; the

@@ -59,16 +59,19 @@ callbacks still require their own target-environment live smoke.
 
 ## SDK 1.4.0 live validation (2026-11-15)
 
-The v7 (`1.0.4`) worktree passed all seven live integration tests on Node 24 with SDK `1.4.0` and
-`CURSOR_REASONING_MODEL=composer-2.5`. Two findings came from the first run, before the fixes:
+Both the v7 (`1.0.4`) and v6 (`0.1.4`) worktrees passed all seven live integration tests on
+Node 24 with SDK `1.4.0` and `CURSOR_REASONING_MODEL=composer-2.5`; the v6 worktree passed them
+with both zod `4.2.1` and zod `3.25.76` installed. Two findings came from the first v7 run, before
+the fixes:
 
 - A live stream emits the new `model-call-completed` update immediately before `turn-ended`, with
   identical usage on a single-call turn. It is now raw-only.
 - The usage test failed: `RunResult.usage.totalTokens` equalled `inputTokens + outputTokens`, and
   `inputTokens` was larger than `cacheReadTokens + cacheWriteTokens`. This matches the SDK's 1.1.0
-  accounting change (A-5), so the V4 mapping no longer adds cache tokens to the input total.
+  accounting change (A-5), so the usage mapping no longer adds cache tokens to the input total.
 
-`teamId` was not exercised live; the available login has no second team to select.
+`teamId` was not exercised live; the available login has no second team to select. The usage
+test's duration varied from 25 to 60 seconds across runs and exceeded its 120-second timeout once.
 
 ## SDK 1.0.31 live validation (2026-09-07)
 

@@ -211,7 +211,8 @@ export const cursorSettingsSchema: z.ZodType<CursorSettings> = z
     createNewAgentPerCall: z.boolean().optional(),
     agentName: z.string().optional(),
     // The SDK silently drops zero, negative, fractional, and unsafe values; fail fast instead.
-    teamId: z.number().int().positive().optional(),
+    // zod 3's `.int()` accepts unsafe integers, so bound the range explicitly.
+    teamId: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional(),
     mode: z.enum(['agent', 'plan']).optional(),
     systemPrompt: z
       .string()
