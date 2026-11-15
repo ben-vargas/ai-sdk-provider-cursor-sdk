@@ -57,7 +57,12 @@ async function main(): Promise<void> {
     });
 
     const metadata = result.finalStep.providerMetadata?.cursor;
-    console.log('Assistant response:', result.text);
+    // Cursor can return several text blocks in one step, such as a note before a tool call.
+    // `result.text` joins them with no separator, so join the blocks explicitly for display.
+    const text = result.content
+      .flatMap((part) => (part.type === 'text' && part.text ? [part.text] : []))
+      .join('\n\n');
+    console.log('Assistant response:\n', text);
     console.log('Lifecycle callback order:', lifecycle);
     console.log('Final correlation fields:', {
       runId: metadata?.runId,

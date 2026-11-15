@@ -21,6 +21,7 @@ async function main(): Promise<void> {
   const workspace = mkdtempSync(join(tmpdir(), 'cursor-streaming-example-'));
   const provider = createCursor({ apiKey });
   let textDeltaCount = 0;
+  let startsTextBlock = false;
 
   try {
     const result = streamText({
@@ -33,7 +34,12 @@ async function main(): Promise<void> {
     });
 
     for await (const part of result.fullStream) {
-      if (part.type === 'text-delta') {
+      if (part.type === 'text-start') {
+        startsTextBlock = true;
+      } else if (part.type === 'text-delta') {
+        // Cursor starts a new text block after reasoning or a tool call; keep the blocks apart.
+        if (startsTextBlock && textDeltaCount > 0) process.stdout.write('\n\n');
+        startsTextBlock = false;
         textDeltaCount += 1;
         process.stdout.write(part.text);
       }

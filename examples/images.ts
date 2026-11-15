@@ -63,7 +63,12 @@ async function main(): Promise<void> {
     });
 
     console.log('Image:', imagePath);
-    console.log('Description:\n', result.text);
+    // Cursor can return several text blocks in one step, such as a note before a tool call.
+    // `result.text` joins them with no separator, so join the blocks explicitly for display.
+    const text = result.content
+      .flatMap((part) => (part.type === 'text' && part.text ? [part.text] : []))
+      .join('\n\n');
+    console.log('Description:\n', text);
     console.log('Finish reason:', result.finishReason);
     console.log('Usage:', result.usage);
     console.log('Cursor metadata:', result.finalStep.providerMetadata?.cursor);
