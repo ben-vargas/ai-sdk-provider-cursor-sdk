@@ -7,6 +7,41 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-15
+
+### Added
+
+- Support `teamId` to attribute requests to one Cursor team when a login belongs to several. It is
+  sent on create and on every resume, validated as a positive integer, and part of the resume
+  cache key.
+
+### Changed
+
+- Pin `@cursor/sdk` from `1.0.36` to `1.4.0`.
+- Raise the `zod` peer range from `^3.0.0 || ^4.0.0` to `^3.25.76 || ^4.1.8`. The SDK now takes
+  `zod` as a peer dependency (`^3.25.0 || ^4.0.0`) instead of installing its own zod 3, and imports
+  the `zod/v3` and `zod/v4` entry points that only exist from zod 3.25. The new range is the one
+  `ai` v6 and `@ai-sdk/provider-utils` already require, so it does not exclude any working install.
+- Classify the new local options `resourceProviderOptions`, `reportedWorkspacePath`, `fs`, and
+  `hostMcpBridgeUrls` as known-excluded in the SDK drift guard, for the agent and (except the
+  bridge URLs, which are agent-only) per send. They are reachable through `sdkAgentOptions.local`;
+  see the configuration reference. `CursorLocalSettings` omits them, and resumed handles are also
+  keyed by the `fs` and `resourceProviderOptions` object identities and by the
+  `reportedWorkspacePath` and `hostMcpBridgeUrls` values.
+
+### Fixed
+
+- Accept `maxMode` on a subagent's `agents.*.model`. The SDK type allows it since `1.0.38`, but
+  the strict settings validation rejected it.
+- Stop double-counting cache tokens in usage. Since `@cursor/sdk` `1.1.0`, Cursor's `inputTokens`
+  is the whole prompt with cache reads and writes included. `usage.inputTokens.total` is now
+  Cursor's `inputTokens` (it previously added the cache fields again), `noCache` is that value
+  minus cache reads and writes, and the fallback `totalTokens` summed from turns is input + output.
+- Treat the new `model-call-completed` Cursor update as a raw-only event. Its name matched the
+  fail-closed unknown-event heuristic, so every `1.4.0` stream that emitted it failed with a
+  protocol-consistency error. Usage still comes from `turn-ended`, which already includes each
+  model call's tokens.
+
 ## [0.1.3] - 2026-10-06
 
 ### Changed

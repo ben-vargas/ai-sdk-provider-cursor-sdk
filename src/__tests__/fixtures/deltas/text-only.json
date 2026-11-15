@@ -8,7 +8,7 @@
       "update": {
         "type": "turn-ended",
         "usage": {
-          "inputTokens": 10,
+          "inputTokens": 13,
           "outputTokens": 4,
           "cacheReadTokens": 2,
           "cacheWriteTokens": 1,
@@ -25,7 +25,7 @@
     "model": { "id": "composer-2.5", "params": [{ "id": "fast", "value": "true" }] },
     "durationMs": 25,
     "usage": {
-      "inputTokens": 10,
+      "inputTokens": 13,
       "outputTokens": 4,
       "cacheReadTokens": 2,
       "cacheWriteTokens": 1,

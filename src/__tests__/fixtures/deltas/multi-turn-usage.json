@@ -5,7 +5,7 @@
       "update": {
         "type": "turn-ended",
         "usage": {
-          "inputTokens": 2,
+          "inputTokens": 11,
           "outputTokens": 3,
           "cacheReadTokens": 4,
           "cacheWriteTokens": 5,
@@ -17,7 +17,7 @@
       "update": {
         "type": "turn-ended",
         "usage": {
-          "inputTokens": 7,
+          "inputTokens": 37,
           "outputTokens": 11,
           "cacheReadTokens": 13,
           "cacheWriteTokens": 17

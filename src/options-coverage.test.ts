@@ -20,7 +20,8 @@ type AgentMappedKey =
   | 'mode'
   | 'systemPrompt'
   | 'tools'
-  | 'disallowedTools';
+  | 'disallowedTools'
+  | 'teamId';
 type AgentProviderManagedKey = 'agentId' | 'idempotencyKey';
 type AgentKnownExcludedKey = never;
 type AgentAccountedKey = AgentMappedKey | AgentProviderManagedKey | AgentKnownExcludedKey;
@@ -31,7 +32,14 @@ type SendKnownExcludedKey = 'onStep' | 'mcpServers' | 'cloud';
 type SendAccountedKey = SendMappedKey | SendProviderManagedKey | SendKnownExcludedKey;
 
 type LocalSendMappedKey = 'force';
-type LocalSendKnownExcludedKey = 'customTools' | 'subagentInherit';
+// Per-send `resourceProviderOptions`, `reportedWorkspacePath`, and `fs` replace the agent-level
+// values for one send. The provider only maps `force` per call.
+type LocalSendKnownExcludedKey =
+  | 'customTools'
+  | 'subagentInherit'
+  | 'resourceProviderOptions'
+  | 'reportedWorkspacePath'
+  | 'fs';
 type CloudSendKnownExcludedKey = 'envVars';
 
 type LocalAgentMappedKey =
@@ -43,9 +51,16 @@ type LocalAgentMappedKey =
   | 'sandboxOptions'
   | 'customTools'
   | 'enableAgentRetries';
-// `subagentInherit` carries live executor objects typed against unpublished SDK interfaces. It is
-// not modeled in the validated `local` settings; callers can pass it through `sdkAgentOptions.local`.
-type LocalAgentKnownExcludedKey = 'subagentInherit';
+// `subagentInherit`, `resourceProviderOptions`, and `fs` carry live executor or file-system objects
+// (or factories). `reportedWorkspacePath` only makes sense alongside them, and `hostMcpBridgeUrls`
+// is marked `@internal` by the SDK. None are modeled in the validated `local` settings; callers can
+// pass them through `sdkAgentOptions.local`.
+type LocalAgentKnownExcludedKey =
+  | 'subagentInherit'
+  | 'resourceProviderOptions'
+  | 'reportedWorkspacePath'
+  | 'fs'
+  | 'hostMcpBridgeUrls';
 type CloudAgentMappedKey =
   | 'env'
   | 'repos'
@@ -74,6 +89,7 @@ type InteractionMappedType =
   | 'summary-completed'
   | 'user-message-appended'
   | 'tool-requests-listed'
+  | 'model-call-completed'
   | 'tool-call-delta';
 
 // `tool-call-delta.taskUpdate` carries its own narrower union, so it drifts independently of

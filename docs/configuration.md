@@ -81,6 +81,14 @@ one provider-owned agent is lazily created and cached per model instance.
 Passed as `AgentOptions.name` when creating an agent. Cursor generates/falls back to a name when it
 is omitted.
 
+#### `teamId?: number`
+
+Team to attribute the agent's requests to, for logins that belong to more than one team
+(`@cursor/sdk` 1.0.40+). Cursor sends it as `x-cursor-team-id`; single-team logins can omit it. It
+must be a positive integer (Cursor itself silently ignores other values). Cursor does not persist it, so the provider passes it on creation and on
+every explicit `agentId` resume, and resumed handles are keyed by it. It does not reach an injected
+`agent`; configure that agent where it is created.
+
 #### `mode?: 'agent' | 'plan'`
 
 Cursor conversation mode. Newly created agents default to `'agent'`. A call-level `mode` wins; when
@@ -110,7 +118,7 @@ receive an `InvalidArgument` on the first send. Cloud agents do not support this
 For an injected `agent`, set the prompt when constructing that agent instead.
 
 Cursor does not persist this prompt. Pass it again when resuming in a new provider/model instance.
-Resumed handles are cached by agent ID, effective prompt, and tool restrictions, including
+Resumed handles are cached by agent ID, effective prompt, tool restrictions, and `teamId`, including
 `sdkAgentOptions` overrides. The escape hatch takes precedence over the first-class setting.
 
 AI SDK `system` messages retain the existing `systemMessageMode` policy below; they are not
@@ -140,11 +148,20 @@ need `Task` children to inherit executor overrides or the parent's `tools` / `di
 resume, handles are also keyed by the `subagentInherit` object's identity, so reuse the same object
 to share a resumed handle.
 
+The same applies to `local.resourceProviderOptions`, `local.reportedWorkspacePath`, and `local.fs`
+(`@cursor/sdk` 1.1.0+), which replace the agent's own executors or run its file tools on
+a caller-supplied `FileSystem` tree instead of the host disk. Pass them through
+`sdkAgentOptions.local`; an agent created with `fs` needs `fs` again on resume. Resumed handles are
+keyed by the `fs` and `resourceProviderOptions` object identities and by the
+`reportedWorkspacePath` value. Their per-send replacements are not exposed. The SDK-internal
+`local.hostMcpBridgeUrls` is not modeled either; if you pass it through `sdkAgentOptions.local`,
+resumed handles are keyed by the URL list.
+
 When both `local` and `cloud` are absent, the provider explicitly creates with `local: {}` rather
 than relying on undocumented omit-both behavior.
 
 `settings.local` is applied when creating an agent. On explicit `agentId` resume, the implementation
-passes auth, MCP servers, subagents, `systemPrompt`, `tools` / `disallowedTools`, and `sdkAgentOptions`; provide
+passes auth, `teamId`, MCP servers, subagents, `systemPrompt`, `tools` / `disallowedTools`, and `sdkAgentOptions`; provide
 advanced resume-only local routing such as a custom store through `sdkAgentOptions.local`.
 
 #### `cloud?: CloudAgentOptions`

@@ -270,7 +270,7 @@ describe('CursorV3StreamEmitter', () => {
         inputTokens: { total: 21, noCache: 3, cacheRead: 7, cacheWrite: 11 },
         outputTokens: { total: 5, text: 3, reasoning: 2 },
         raw: {
-          inputTokens: 3,
+          inputTokens: 21,
           outputTokens: 5,
           cacheReadTokens: 7,
           cacheWriteTokens: 11,
@@ -289,7 +289,7 @@ describe('CursorV3StreamEmitter', () => {
           durationMs: 12,
           result: 'done',
           usage: {
-            inputTokens: 3,
+            inputTokens: 21,
             outputTokens: 5,
             cacheReadTokens: 7,
             cacheWriteTokens: 11,
@@ -324,7 +324,7 @@ describe('CursorV3StreamEmitter', () => {
       providerMetadata: {
         cursor: {
           usage: {
-            inputTokens: 9,
+            inputTokens: 48,
             outputTokens: 14,
             cacheReadTokens: 17,
             cacheWriteTokens: 22,

@@ -183,10 +183,13 @@ export function normalizeCursorUpdate(
     }
     // Raw-only. `tool-requests-listed` is an informational per-step count; each counted call
     // still surfaces through its own tool-call-started/-completed lifecycle.
+    // `model-call-completed` reports one model call's tokens. `turn-ended` carries the turn total
+    // that already includes it, so mapping both would double-count usage.
     case 'token-delta':
     case 'step-started':
     case 'step-completed':
     case 'tool-requests-listed':
+    case 'model-call-completed':
     case 'summary':
     case 'summary-started':
     case 'summary-completed':
