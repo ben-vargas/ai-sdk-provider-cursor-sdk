@@ -45,12 +45,15 @@ async function main(): Promise<void> {
       if (part.type === 'raw') {
         const type = rawEventType(part.rawValue);
         eventCounts.set(type, (eventCounts.get(type) ?? 0) + 1);
+      } else if (part.type === 'text-start') {
+        // Cursor starts a new text block after a tool call; keep the blocks apart.
+        if (text) text += '\n\n';
       } else if (part.type === 'text-delta') {
         text += part.text;
       }
     }
 
-    console.log('Assistant response:', text);
+    console.log('Assistant response:\n', text);
     console.log('Redacted raw event counts:', Object.fromEntries(eventCounts));
     console.log('Warnings:', await result.warnings);
     console.log('Cursor metadata:', (await result.finalStep).providerMetadata?.cursor);

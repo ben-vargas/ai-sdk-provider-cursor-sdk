@@ -33,7 +33,10 @@ async function main(): Promise<void> {
     });
 
     for await (const part of result.fullStream) {
-      if (part.type === 'text-delta') {
+      if (part.type === 'text-start') {
+        // Cursor starts a new text block after a tool call; keep the blocks apart.
+        if (textDeltaCount > 0) process.stdout.write('\n\n');
+      } else if (part.type === 'text-delta') {
         textDeltaCount += 1;
         process.stdout.write(part.text);
       }

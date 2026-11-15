@@ -86,6 +86,9 @@ async function main(): Promise<void> {
           providerExecuted: part.providerExecuted,
           dynamic: part.dynamic,
         });
+      } else if (part.type === 'text-start') {
+        // Cursor starts a new text block after a tool call; keep the blocks apart.
+        if (assistantText) assistantText += '\n\n';
       } else if (part.type === 'text-delta') {
         assistantText += part.text;
       }
