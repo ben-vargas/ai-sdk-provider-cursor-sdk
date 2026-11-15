@@ -262,6 +262,12 @@ Inherited runtime behavior, with no provider change:
 - When a local store fails to open after a turn already produced its result text, the run now
   finishes successfully with that text (1.0.40) instead of failing. The SDK reports the store
   failure as a warning on `run.stream()` status messages, which the provider does not consume.
+- With `local.sandboxOptions.enabled`, the first sandboxed command on a machine deletes and
+  recreates Node's compile-cache directories outside the workspace (1.4.0): `node-compile-cache`
+  in the temp directory and, on macOS, `~/Library/Caches/cursor-compile-cache`. The SDK records
+  the cleanup so it runs once, and prints `INFO  node compile cache: removed …` lines to the
+  process's standard output regardless of the provider's `logger` setting. Observed live running
+  `examples/local-repository-edit.ts`.
 
 Other surface changes, none used by the provider:
 
