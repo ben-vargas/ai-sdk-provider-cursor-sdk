@@ -5,6 +5,7 @@ import {
   type AcquireAgentOptions,
 } from './cursor-agent-manager.js';
 import { noopLogger } from './logger.js';
+import type { CursorSettings } from './settings.js';
 import { FakeSDKAgent, loadDeltaFixture } from './__tests__/fixtures/fake-cursor-sdk.js';
 import {
   mockAgentCreate,
@@ -49,6 +50,7 @@ describe('CursorAgentManager acquisition and ownership', () => {
       acquireOptions({
         settings: {
           agentName: 'Provider agent',
+          teamId: 42,
           mode: 'plan',
           local: { cwd: '/repo', dirs: ['/extra'], autoReview: true },
           customTools: { custom: customTool },
@@ -70,6 +72,7 @@ describe('CursorAgentManager acquisition and ownership', () => {
       model: { id: 'composer-2.5', params: [{ id: 'fast', value: 'true' }] },
       apiKey: 'cursor-key',
       name: 'Provider agent',
+      teamId: 42,
       mode: 'agent',
       local: {
         cwd: '/repo',
@@ -164,6 +167,7 @@ describe('CursorAgentManager acquisition and ownership', () => {
       acquireOptions({
         settings: {
           agentId: 'agent-settings',
+          teamId: 42,
           mcpServers: { docs: { command: 'docs' } },
           agents: { reviewer: { description: 'review', prompt: 'Review' } },
           tools: [],
@@ -176,6 +180,7 @@ describe('CursorAgentManager acquisition and ownership', () => {
     expect(scope.agent).toBe(agent);
     expect(mockAgentResume).toHaveBeenCalledWith('agent-call', {
       apiKey: 'cursor-key',
+      teamId: 42,
       mcpServers: { docs: { command: 'docs' } },
       agents: { reviewer: { description: 'review', prompt: 'Review' } },
       tools: [],
@@ -291,6 +296,64 @@ describe('CursorAgentManager acquisition and ownership', () => {
     expect(resumeCacheKey('agent-shared', withInherit(inherit))).not.toBe(
       resumeCacheKey('agent-shared', {})
     );
+  });
+
+  it('separates resumed handles by team ID, including the escape-hatch override', () => {
+    const key = (settings: CursorSettings) => resumeCacheKey('agent-shared', settings);
+    expect(key({ teamId: 1 })).toBe(key({ teamId: 1 }));
+    expect(key({ teamId: 1 })).not.toBe(key({ teamId: 2 }));
+    expect(key({ teamId: 1 })).not.toBe(key({}));
+    expect(key({ teamId: 1, sdkAgentOptions: { teamId: 2 } })).toBe(key({ teamId: 2 }));
+  });
+
+  it('separates resumed handles by executor and file-system identity and workspace path', () => {
+    const withLocal = (local: Record<string, unknown>): CursorSettings => ({
+      sdkAgentOptions: { local },
+    });
+    const key = (local: Record<string, unknown>) =>
+      resumeCacheKey('agent-shared', withLocal(local));
+    const fs = () => ({}) as never;
+    const resourceProviderOptions = {};
+    for (const [name, value, other] of [
+      ['fs', fs, () => ({}) as never],
+      ['resourceProviderOptions', resourceProviderOptions, {}],
+      ['reportedWorkspacePath', '/repo', '/other'],
+    ] as const) {
+      expect(key({ [name]: value })).toBe(key({ [name]: value }));
+      expect(key({ [name]: value })).not.toBe(key({ [name]: other }));
+      expect(key({ [name]: value })).not.toBe(key({}));
+    }
+  });
+
+  it('resumes a separate handle when host MCP bridge URLs change or are removed', async () => {
+    const withBridges = fakeAgent('agent-shared');
+    const otherBridges = fakeAgent('agent-shared');
+    const noBridges = fakeAgent('agent-shared');
+    mockAgentResume
+      .mockResolvedValueOnce(withBridges)
+      .mockResolvedValueOnce(otherBridges)
+      .mockResolvedValueOnce(noBridges);
+    const manager = new CursorAgentManager(noopLogger);
+    const acquire = (hostMcpBridgeUrls?: string[]) =>
+      manager.acquire(
+        acquireOptions({
+          callOptions: { agentId: 'agent-shared' },
+          settings: hostMcpBridgeUrls ? { sdkAgentOptions: { local: { hostMcpBridgeUrls } } } : {},
+        })
+      );
+    const a = 'http://127.0.0.1:9001';
+    const b = 'http://127.0.0.1:9002';
+
+    expect((await acquire([a, b])).agent).toBe(withBridges);
+    expect((await acquire([b, a])).agent).toBe(withBridges);
+    expect((await acquire([b])).agent).toBe(otherBridges);
+    expect((await acquire()).agent).toBe(noBridges);
+    expect(mockAgentResume).toHaveBeenCalledTimes(3);
+    expect(mockAgentResume.mock.calls.map(([, options]) => options.local)).toEqual([
+      { hostMcpBridgeUrls: [a, b] },
+      { hostMcpBridgeUrls: [b] },
+      undefined,
+    ]);
   });
 
   it('uses injected agents without taking ownership', async () => {

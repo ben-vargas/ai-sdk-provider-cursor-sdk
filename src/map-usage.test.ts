@@ -3,8 +3,9 @@ import { CursorUsageAccumulator, mapCursorUsage } from './map-usage.js';
 
 describe('mapCursorUsage', () => {
   it('maps cache and reasoning tokens into the V4 nested shape', () => {
+    // Cursor's inputTokens is the whole prompt: 10 uncached + 4 cache read + 2 cache write.
     const usage: TokenUsage = {
-      inputTokens: 10,
+      inputTokens: 16,
       outputTokens: 8,
       cacheReadTokens: 4,
       cacheWriteTokens: 2,
@@ -33,6 +34,22 @@ describe('mapCursorUsage', () => {
     });
   });
 
+  it('never reports negative uncached input when cache counts exceed the input total', () => {
+    const usage: TokenUsage = {
+      inputTokens: 5,
+      outputTokens: 1,
+      cacheReadTokens: 4,
+      cacheWriteTokens: 3,
+      totalTokens: 6,
+    };
+    expect(mapCursorUsage(usage).inputTokens).toEqual({
+      total: 5,
+      noCache: 0,
+      cacheRead: 4,
+      cacheWrite: 3,
+    });
+  });
+
   it('returns undefined fields rather than fabricated zeros when usage is absent', () => {
     expect(mapCursorUsage()).toEqual({
       inputTokens: {
@@ -57,7 +74,7 @@ describe('CursorUsageAccumulator', () => {
       cacheWriteTokens: 100,
     });
     const terminal: TokenUsage = {
-      inputTokens: 1,
+      inputTokens: 8,
       outputTokens: 2,
       cacheReadTokens: 3,
       cacheWriteTokens: 4,
@@ -69,21 +86,22 @@ describe('CursorUsageAccumulator', () => {
   it('field-wise sums incremental turns and computes the Cursor total', () => {
     const accumulator = new CursorUsageAccumulator();
     accumulator.add({
-      inputTokens: 2,
+      inputTokens: 14,
       outputTokens: 3,
       cacheReadTokens: 5,
       cacheWriteTokens: 7,
       reasoningTokens: 1,
     });
     accumulator.add({
-      inputTokens: 11,
+      inputTokens: 47,
       outputTokens: 13,
       cacheReadTokens: 17,
       cacheWriteTokens: 19,
       reasoningTokens: 2,
     });
+    // inputTokens already includes the cache fields, so the total is input + output.
     expect(accumulator.resolve()).toEqual({
-      inputTokens: 13,
+      inputTokens: 61,
       outputTokens: 16,
       cacheReadTokens: 22,
       cacheWriteTokens: 26,

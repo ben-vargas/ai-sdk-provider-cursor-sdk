@@ -27,12 +27,14 @@ function completeTurnUsage(usage: NormalizedUsageInput): TurnUsageInput | undefi
 // its public package entrypoint (re-verified against the pinned version during
 // canary triage; see docs/GAP_ANALYSIS.md). Keep the documented field-wise
 // behavior here until the helpers become part of the published API.
+//
+// Since @cursor/sdk 1.1.0, `inputTokens` is the whole prompt with cache reads and writes already
+// included, so the total is input + output. Earlier pins added the cache fields on top.
 function toTokenUsage(usage: TurnUsageInput | undefined): TokenUsage | undefined {
   if (!usage) return undefined;
   return {
     ...usage,
-    totalTokens:
-      usage.inputTokens + usage.outputTokens + usage.cacheReadTokens + usage.cacheWriteTokens,
+    totalTokens: usage.inputTokens + usage.outputTokens,
   };
 }
 
@@ -75,8 +77,11 @@ export class CursorUsageAccumulator {
 export function mapCursorUsage(usage?: TokenUsage): LanguageModelV4Usage {
   return {
     inputTokens: {
-      total: usage ? usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens : undefined,
-      noCache: usage?.inputTokens,
+      // Cursor's `inputTokens` already includes cache reads and writes (see `toTokenUsage`).
+      total: usage?.inputTokens,
+      noCache: usage
+        ? Math.max(0, usage.inputTokens - usage.cacheReadTokens - usage.cacheWriteTokens)
+        : undefined,
       cacheRead: usage?.cacheReadTokens,
       cacheWrite: usage?.cacheWriteTokens,
     },

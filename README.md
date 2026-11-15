@@ -20,7 +20,7 @@ AI SDK v7 primitives.
 
 | Provider | AI SDK                 | Cursor SDK           | Branch      | npm tag     |
 | -------- | ---------------------- | -------------------- | ----------- | ----------- |
-| `1.x`    | v7 (`LanguageModelV4`) | `@cursor/sdk@1.0.36` | `main`      | `latest`    |
+| `1.x`    | v7 (`LanguageModelV4`) | `@cursor/sdk@1.4.0`  | `main`      | `latest`    |
 | `0.x`    | v6 (`LanguageModelV3`) | `@cursor/sdk@1.0.36` | `ai-sdk-v6` | `ai-sdk-v6` |
 
 The `main` branch and `latest` npm tag target AI SDK v7. The `ai-sdk-v6` branch and matching npm
@@ -238,6 +238,7 @@ top-level key; nested objects are shallow-replaced, not deep-merged.
 | `agent`                              | `SDKAgent`                          | —                | Use a caller-owned agent; never closed by the provider                        |
 | `createNewAgentPerCall`              | `boolean`                           | `false`          | Create and close a fresh agent for each call                                  |
 | `agentName`                          | `string`                            | SDK-generated    | Dashboard-visible name                                                        |
+| `teamId`                             | `number`                            | Account default  | Team to attribute requests to; sent on create and every resume                |
 | `mode`                               | `'agent' \| 'plan'`                 | `'agent'`        | New-agent mode; omitted sends preserve an existing agent's mode               |
 | `local`                              | `LocalAgentOptions`                 | `{}`             | Local runtime; `dirs` for extra roots; `cwd` arrays migrate to `cwd` + `dirs` |
 | `cloud`                              | `CloudAgentOptions`                 | —                | Cloud runtime, including `metadata` and `openAsCursorGithubApp`               |

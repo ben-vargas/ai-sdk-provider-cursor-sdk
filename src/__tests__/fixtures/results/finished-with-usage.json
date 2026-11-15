@@ -6,7 +6,7 @@
   "model": { "id": "composer-2.5", "params": [{ "id": "fast", "value": "true" }] },
   "durationMs": 12,
   "usage": {
-    "inputTokens": 3,
+    "inputTokens": 21,
     "outputTokens": 5,
     "cacheReadTokens": 7,
     "cacheWriteTokens": 11,
