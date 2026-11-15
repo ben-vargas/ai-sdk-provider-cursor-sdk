@@ -1,5 +1,10 @@
 import type { InteractionUpdate, ToolCallDeltaUpdate } from '@cursor/sdk';
-import { ToolCallDeltaUpdateSchema } from '@cursor/sdk';
+import {
+  ModelCallCompletedUpdateSchema,
+  ToolCallCompletedUpdateSchema,
+  ToolCallDeltaUpdateSchema,
+  ToolCallStartedUpdateSchema,
+} from '@cursor/sdk';
 import { CursorStreamConsistencyError } from './errors.js';
 import { normalizeCursorUpdate } from './normalize-cursor-events.js';
 import { CursorEventNormalizer } from './normalized-events.js';
@@ -266,6 +271,65 @@ describe('normalizeCursorUpdate', () => {
   it('keeps every documented non-semantic event as raw-only', () => {
     for (const events of normalizeFixture('summary-events')) {
       expect(events).toEqual([expect.objectContaining({ kind: 'raw', conditional: true })]);
+    }
+  });
+
+  it('keeps model-call-completed raw-only so turn-ended stays the only usage source', () => {
+    const normalizer = new CursorEventNormalizer(false);
+    normalizeCursorUpdate(normalizer, { type: 'text-delta', text: 'working' });
+    const update = {
+      type: 'model-call-completed' as const,
+      modelCallId: 'model-call-1',
+      usage: { inputTokens: 100, outputTokens: 20, cacheReadTokens: 5, cacheWriteTokens: 1 },
+    };
+    expect(ModelCallCompletedUpdateSchema.safeParse(update).error).toBeUndefined();
+    // Without an explicit classification this name matches the fail-closed heuristic and throws.
+    expect(normalizeCursorUpdate(normalizer, update)).toEqual([
+      { kind: 'raw', value: update, conditional: true },
+    ]);
+    expect(
+      normalizeCursorUpdate(normalizer, { type: 'text-delta', text: ' on' }).filter(
+        (event) => event.kind !== 'raw'
+      )
+    ).toEqual([{ kind: 'text-delta', id: 'txt-1', delta: ' on' }]);
+  });
+
+  it('maps the computerUse tool generically at top level and inside a task update', () => {
+    const toolCall = { type: 'computerUse' as const, args: { actions: [{ type: 'screenshot' }] } };
+    const result = { status: 'success' as const, value: { actionCount: 1, durationMs: 5 } };
+    for (const nested of [false, true]) {
+      const normalizer = new CursorEventNormalizer(false);
+      const wrap = (taskUpdate: Record<string, unknown>) =>
+        nested
+          ? liveToolCallDelta({
+              type: 'tool-call-delta',
+              callId: 'call-task',
+              modelCallId: 'model-call-task',
+              taskUpdate: taskUpdate as ToolCallDeltaUpdate['taskUpdate'],
+            })
+          : taskUpdate;
+      const ids = { callId: 'call-computer', modelCallId: 'model-call-computer' };
+      const started = { type: 'tool-call-started', ...ids, toolCall };
+      const completed = { type: 'tool-call-completed', ...ids, toolCall: { ...toolCall, result } };
+      expect(ToolCallStartedUpdateSchema.safeParse(started).error).toBeUndefined();
+      expect(ToolCallCompletedUpdateSchema.safeParse(completed).error).toBeUndefined();
+
+      const events = [started, completed]
+        .flatMap((update) => normalizeCursorUpdate(normalizer, wrap(update)))
+        .filter((event) => event.kind !== 'raw');
+      expect(events[0]).toEqual({
+        kind: 'tool-input-start',
+        toolCallId: 'call-computer',
+        toolName: 'computerUse',
+        metadata: { modelCallId: 'model-call-computer' },
+      });
+      expect(events.at(-1)).toMatchObject({
+        kind: 'tool-result',
+        toolCallId: 'call-computer',
+        toolName: 'computerUse',
+        result,
+        isError: false,
+      });
     }
   });
 

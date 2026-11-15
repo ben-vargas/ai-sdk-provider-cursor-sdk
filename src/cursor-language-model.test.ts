@@ -68,6 +68,7 @@ function controlledAgent(
     send: vi.fn(async () => run),
     close: vi.fn(),
     reload: vi.fn(async () => undefined),
+    summarize: vi.fn(async () => run),
     [Symbol.asyncDispose]: vi.fn(async () => undefined),
     listArtifacts: vi.fn(async () => []),
     downloadArtifact: vi.fn(async () => Buffer.alloc(0)),
@@ -229,7 +230,7 @@ describe('CursorLanguageModel streaming and generation', () => {
       callOptions({ includeRawChunks: true })
     );
     const visibleParts = await collect(visible.stream);
-    expect(visibleParts.filter((part) => part.type === 'raw')).toHaveLength(8);
+    expect(visibleParts.filter((part) => part.type === 'raw')).toHaveLength(9);
 
     // Raw-only updates must not disturb completion, e.g. by checking tool-requests-listed's
     // callCount against a fixture that has no tool lifecycle.

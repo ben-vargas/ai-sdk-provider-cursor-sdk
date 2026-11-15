@@ -79,16 +79,25 @@ function objectIdentity(value: object | undefined): number | null {
  * Resume handles must not be shared across different prompts or tool restrictions.
  * Include effective escape-hatch overrides so the key matches the SDK options.
  * `subagentInherit` decides whether `Task` children receive the tool restrictions and holds
- * live executors, so it is keyed by object identity.
+ * live executors, so it is keyed by object identity. `resourceProviderOptions` and `fs` decide
+ * where the agent's own tools run and are live objects or factories, keyed the same way.
+ * `teamId` is not persisted by the SDK, so a handle resumed for one team must not serve another.
+ * `hostMcpBridgeUrls` selects which MCP URLs bypass the local admin MCP policy.
  */
 export function resumeCacheKey(agentId: string, settings: CursorSettings): string {
   const effective = { ...settings, ...settings.sdkAgentOptions };
+  const local = settings.sdkAgentOptions?.local;
   return JSON.stringify({
     agentId,
     systemPrompt: effective.systemPrompt ?? null,
     tools: canonicalizeToolList(effective.tools),
     disallowedTools: canonicalizeToolList(effective.disallowedTools),
-    subagentInherit: objectIdentity(settings.sdkAgentOptions?.local?.subagentInherit),
+    teamId: effective.teamId ?? null,
+    subagentInherit: objectIdentity(local?.subagentInherit),
+    resourceProviderOptions: objectIdentity(local?.resourceProviderOptions),
+    fs: objectIdentity(local?.fs),
+    reportedWorkspacePath: local?.reportedWorkspacePath ?? null,
+    hostMcpBridgeUrls: local?.hostMcpBridgeUrls ? [...local.hostMcpBridgeUrls].sort() : null,
   });
 }
 
@@ -205,6 +214,7 @@ export class CursorAgentManager {
       },
       apiKey: options.apiKey,
       ...(settings.agentName ? { name: settings.agentName } : {}),
+      ...(settings.teamId !== undefined ? { teamId: settings.teamId } : {}),
       mode: callOptions.mode ?? settings.mode ?? 'agent',
       ...runtime,
       ...(settings.mcpServers ? { mcpServers: settings.mcpServers } : {}),
@@ -222,6 +232,7 @@ export class CursorAgentManager {
     const { settings } = options;
     return {
       apiKey: options.apiKey,
+      ...(settings.teamId !== undefined ? { teamId: settings.teamId } : {}),
       ...(settings.mcpServers ? { mcpServers: settings.mcpServers } : {}),
       ...(settings.agents ? { agents: settings.agents } : {}),
       ...(settings.systemPrompt !== undefined ? { systemPrompt: settings.systemPrompt } : {}),

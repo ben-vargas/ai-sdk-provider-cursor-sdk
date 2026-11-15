@@ -1,7 +1,7 @@
 # AI SDK v7/v6 gap analysis
 
 This document compares the union of AI SDK v7 (`LanguageModelV4` / `ProviderV4`) and AI SDK v6
-(`LanguageModelV3` / `ProviderV3`) with the public surface of `@cursor/sdk@1.0.36`, the version
+(`LanguageModelV3` / `ProviderV3`) with the public surface of `@cursor/sdk@1.4.0`, the version
 pinned on both maintained branches. It describes the AI SDK v7 behavior implemented on `main`; rows that differ for the
 `ai-sdk-v6` branch are marked.
 
@@ -130,14 +130,16 @@ them.
 
 ## Usage mapping detail
 
-Cursor reports `outputTokens` with reasoning already included and reports cache tokens separately.
+Cursor reports `outputTokens` with reasoning already included. Since `@cursor/sdk` 1.1.0 its
+`inputTokens` is the whole prompt with cache reads and writes already included, and
+`totalTokens` is `inputTokens + outputTokens`; earlier SDK versions added the cache fields on top.
 The V4 mapping is:
 
 ```ts
 {
   inputTokens: {
-    total: inputTokens + cacheReadTokens + cacheWriteTokens,
-    noCache: inputTokens,
+    total: inputTokens,
+    noCache: max(0, inputTokens - cacheReadTokens - cacheWriteTokens),
     cacheRead: cacheReadTokens,
     cacheWrite: cacheWriteTokens,
   },
@@ -155,7 +157,7 @@ path: usage still comes from `turn-ended` deltas and terminal `RunResult.usage`,
 the run being reported rather than to the agent's lifetime.
 
 `@cursor/sdk` declares `toTokenUsage` and `sumTokenUsage` in its internal `usage-types.d.ts`, but
-`@cursor/sdk@1.0.36` still does not export those functions from its public package entry point. The
+`@cursor/sdk@1.4.0` still does not export those functions from its public package entry point. The
 provider therefore performs the same documented field-wise fallback calculation locally rather than
 importing a non-exported subpath.
 
@@ -197,6 +199,91 @@ importing a non-exported subpath.
 
 - No public type changes from 1.0.35 and no runtime dependency changes. The bundle update is
   internal (regenerated backend message schemas); no options, events, or mapping changes.
+
+## Cursor SDK 1.0.37 – 1.4.0
+
+Options:
+
+- `teamId` (1.0.40): mapped as `CursorSettings.teamId` and sent on `Agent.create` and
+  `Agent.resume`. Cursor sends it as `x-cursor-team-id` and does not persist it, so the provider
+  re-passes it on every resume and includes it in the resume cache key. Cursor silently ignores
+  zero, negative, fractional, and unsafe values; the first-class setting rejects them instead. A
+  value passed through `sdkAgentOptions.teamId` is not validated, like the rest of the escape
+  hatch.
+- `local.resourceProviderOptions`, `local.reportedWorkspacePath`, and `local.fs` (all 1.1.0):
+  known-excluded on both `LocalAgentOptions` and `LocalSendOptions`. `resourceProviderOptions`
+  replaces the agent's own executors and `fs` runs the native file tools on a caller-supplied tree
+  instead of the host disk; both are live objects or factories. `reportedWorkspacePath` is a plain
+  string but only makes sense alongside one of them. Callers can pass all three through
+  `sdkAgentOptions.local` at creation or resume; the resume cache keys `fs` and
+  `resourceProviderOptions` by object identity and `reportedWorkspacePath` by value. An agent
+  created with `fs` needs `fs` again on resume. The per-send replacements are not reachable: the
+  provider maps only `force` per call.
+- `overrideDeleteExecutor` (1.1.0) joins the executor overrides accepted by `subagentInherit` and
+  `resourceProviderOptions`. Cursor's host delete permission check and approval do not run for a
+  caller-supplied delete executor. It is covered by the same exclusion.
+- `local.hostMcpBridgeUrls` (1.3.0): known-excluded. The SDK marks it `@internal` for Agent SDK
+  hosts and says it may change without notice. It still passes through `sdkAgentOptions.local`,
+  and because it selects which MCP URLs bypass the local admin MCP policy, the resume cache keys
+  the URL list by value.
+- `ModelSelection.maxMode` and `ModelVariant.isMaxMode` (1.0.38) are not agent or send option keys
+  and are not set by the provider for the main model; the SDK derives `maxMode` when every catalog
+  variant matching `modelParams` requires max mode. A subagent definition's `agents.*.model` may
+  set `maxMode`, and the validated settings accept it.
+
+Events:
+
+- `model-call-completed` (`{ modelCallId, usage }`, 1.4.0), top level only: raw-only. It reports
+  one model call's tokens, and the turn's `turn-ended` usage already includes them, so mapping it
+  would double-count. A live 1.4.0 run emits it before `turn-ended`. It is classified as mapped in
+  the interaction drift-guard union. Without this classification its name matches the fail-closed
+  unknown-event heuristic and aborts the stream.
+- The `NestedTaskUpdate` event names are unchanged, but two payloads widen without a new event
+  name, which the drift guard cannot see:
+  - Tool calls gain a `computerUse` tool type (1.0.37), at top level and inside
+    `tool-call-delta.taskUpdate`. It needs no special case: tool parts are dynamic and take the
+    tool name, input, and result from the payload.
+  - `summary-completed` gains optional `failed` and `fallback` flags (1.2.0). The event stays
+    raw-only and the flags are preserved in the raw value.
+
+Usage:
+
+- From 1.1.0 the SDK computes `totalTokens` as `inputTokens + outputTokens` and documents
+  `inputTokens` as the whole prompt, cache reads and writes included. No type changed. The provider
+  previously added the cache fields to the V4 input total and reported `inputTokens` as uncached,
+  which over-counted input by the cache tokens; both the V4 mapping and the local fallback total
+  now follow the new accounting. Verified live on 1.4.0 (see [ASSUMPTIONS.md](ASSUMPTIONS.md)).
+
+Inherited runtime behavior, with no provider change:
+
+- Local run errors keep their code across a store reload (1.1.0). `createRunError` already reads
+  `RunResult.error.code` for metadata and retry classification, so more local failures now carry
+  one.
+- When a local store fails to open after a turn already produced its result text, the run now
+  finishes successfully with that text (1.0.40) instead of failing. The SDK reports the store
+  failure as a warning on `run.stream()` status messages, which the provider does not consume.
+
+Other surface changes, none used by the provider:
+
+- `SDKAgent.summarize()` (1.2.0) starts a compaction run on local agents. The provider does not
+  call it; an injected agent's owner can. `SDKMessage` gains `SDKSummaryMessage` on `run.stream()`,
+  which the provider does not consume (it reads `onDelta` updates and `run.wait()`).
+- `FeatureUnavailableError` (1.4.0) extends `UnknownAgentError` and maps through the generic SDK
+  error path with the SDK's own `isRetryable`.
+- `SteerAckOutcome` gains a `{ outcome: 'queued' }` variant (1.4.0); the provider does not steer
+  runs.
+- `teamId` is also accepted by the static list, get, run-lookup, archive/delete, account, and
+  catalog calls, none of which the provider calls.
+- `@cursor/sdk` moves `zod` from a dependency (`^3.25.0`) to a peer dependency
+  (`^3.25.0 || ^4.0.0`, 1.0.38), so it resolves to the application's zod instead of installing
+  its own zod 3. It imports the `zod/v3` and `zod/v4` entry points, which exist from zod 3.25; its
+  public schemas still use the zod 3 API (`zod/v3`). `main` already requires zod 4. The
+  `ai-sdk-v6` branch accepted zod `^3.0.0` and now requires `^3.25.76 || ^4.1.8`, the range `ai` v6
+  and `@ai-sdk/provider-utils` already impose.
+- New `FileSystem` helpers and errors (`overlayFs`, `tempFs`, `createFileSystemTools`,
+  `FileNotFoundError`, …) are exported for building an `fs` tree.
+- The `anysphere-source` conditional export is removed from the SDK's package entry points; the
+  provider imports the standard entry.
 
 ## Related documents
 

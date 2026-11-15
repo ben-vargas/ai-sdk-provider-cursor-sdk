@@ -5,6 +5,18 @@
     { "update": { "type": "step-started", "stepId": 1 } },
     { "update": { "type": "tool-requests-listed", "callCount": 2 } },
     { "update": { "type": "step-completed", "stepId": 1, "stepDurationMs": 8 } },
+    {
+      "update": {
+        "type": "model-call-completed",
+        "modelCallId": "model-call-1",
+        "usage": {
+          "inputTokens": 10,
+          "outputTokens": 2,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0
+        }
+      }
+    },
     { "update": { "type": "summary-started" } },
     { "update": { "type": "summary", "summary": "short" } },
     { "update": { "type": "summary-completed" } },
