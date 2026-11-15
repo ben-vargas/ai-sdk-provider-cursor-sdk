@@ -20,9 +20,18 @@ import type { CursorPromptHistoryMode, CursorSystemMessageMode } from './types.j
  * Provider-facing local options. `@cursor/sdk` 1.0.24+ types `cwd` as a single
  * string and adds `dirs` for extra workspace roots. Arrays remain accepted here
  * for back-compat and are migrated to `cwd` + `dirs` at the SDK call edge.
- * `subagentInherit` is not modeled; pass it through `sdkAgentOptions.local`.
+ * `subagentInherit`, `resourceProviderOptions`, `reportedWorkspacePath`, `fs`, and
+ * `hostMcpBridgeUrls` are not modeled; pass them through `sdkAgentOptions.local`.
  */
-export type CursorLocalSettings = Omit<LocalAgentOptions, 'cwd' | 'subagentInherit'> & {
+export type CursorLocalSettings = Omit<
+  LocalAgentOptions,
+  | 'cwd'
+  | 'subagentInherit'
+  | 'resourceProviderOptions'
+  | 'reportedWorkspacePath'
+  | 'fs'
+  | 'hostMcpBridgeUrls'
+> & {
   cwd?: string | string[];
 };
 
@@ -32,6 +41,8 @@ export interface CursorSettings {
   agent?: SDKAgent;
   createNewAgentPerCall?: boolean;
   agentName?: string;
+  /** Team to attribute requests to (`x-cursor-team-id`). Sent on create and on every resume. */
+  teamId?: number;
   mode?: 'agent' | 'plan';
   /** Replaces Cursor's built-in harness prompt (local agents with server access only). */
   systemPrompt?: string;
@@ -129,7 +140,13 @@ const agentDefinitionSchema = z
     model: z
       .union([
         z.literal('inherit'),
-        z.object({ id: z.string(), params: z.array(modelParameterSchema).optional() }).strict(),
+        z
+          .object({
+            id: z.string(),
+            params: z.array(modelParameterSchema).optional(),
+            maxMode: z.boolean().optional(),
+          })
+          .strict(),
       ])
       .optional(),
     mcpServers: z.array(z.union([z.string(), z.record(z.string(), mcpServerSchema)])).optional(),
@@ -193,6 +210,9 @@ export const cursorSettingsSchema: z.ZodType<CursorSettings> = z
     agent: sdkAgentSchema.optional(),
     createNewAgentPerCall: z.boolean().optional(),
     agentName: z.string().optional(),
+    // The SDK silently drops zero, negative, fractional, and unsafe values; fail fast instead.
+    // zod 3's `.int()` accepts unsafe integers, so bound the range explicitly.
+    teamId: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional(),
     mode: z.enum(['agent', 'plan']).optional(),
     systemPrompt: z
       .string()

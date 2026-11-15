@@ -43,7 +43,7 @@ callbacks still require their own target-environment live smoke.
 | **A-2**  | Can an awaited `onDelta` callback outlive `run.wait()`?                             | The SDK docs say callbacks are awaited. The provider still drains queued callbacks after wait settles before emitting the terminal part.                                                                           | Count callbacks completing after wait.                                                           |
 | **A-3**  | Can `onDelta` and `run.stream()` be consumed together without duplication?          | The provider does not combine them. `onDelta` owns token/tool updates and `run.wait()` owns the terminal result; normalized `SDKMessage` status/task events are intentionally not consumed.                        | Spike dual consumption and correlate events.                                                     |
 | **A-4**  | Is terminal usage cumulative and turn-ended usage incremental?                      | `RunResult.usage` is terminal authority. Turn-ended usage is summed field-by-field only when terminal usage is absent.                                                                                             | Compare both sources on a multi-turn run.                                                        |
-| **A-5**  | Do input tokens exclude cache read/write tokens?                                    | Yes, following Cursor's documented total formula. V4 input total adds input, cache read, and cache write.                                                                                                          | Cache-token fields and the mapped total were verified with `composer-2.5` on 2026-07-15.         |
+| **A-5**  | Do input tokens exclude cache read/write tokens?                                    | No since `@cursor/sdk` 1.1.0: `inputTokens` is the whole prompt, cache included, and the total is input + output. V4 input total is `inputTokens`; `noCache` subtracts cache read and write.                       | Re-verified live on SDK `1.4.0` (2026-11-15); the 2026-07-15 check predates the change.          |
 | **A-6**  | Is there a hidden detailed stop reason?                                             | No detail is inferred. Finished/error/cancelled map conservatively to stop/error/other.                                                                                                                            | Probe length-limited and refusal cases.                                                          |
 | **A-7**  | Are overlapping sends safe on one agent?                                            | Both local and cloud sends are serialized. Cloud busy errors are documented; local overlap safety is not. Distinct agents remain parallel.                                                                         | Run overlapping local sends and inspect checkpoints.                                             |
 | **A-8**  | Can tool completion arrive without tool start?                                      | Yes. The provider synthesizes the call from the completion payload and emits a compatibility warning.                                                                                                              | Capture real built-in and MCP tool sequences.                                                    |
@@ -56,6 +56,22 @@ callbacks still require their own target-environment live smoke.
 | **A-15** | Are `partial-tool-call` values snapshots or true deltas?                            | They are treated as cumulative snapshots. Default typed output drops them; experimental mode emits them as preliminary results, never fabricated input deltas.                                                     | Capture real partial sequences before changing the model.                                        |
 | **A-16** | Should a resumed conversation preserve its current mode when no mode is configured? | Yes. The provider omits `SendOptions.mode` unless the call or model explicitly configures it, matching the SDK's documented omit-to-preserve behavior.                                                             | Resume a plan-mode agent with and without explicit `mode: 'plan'` and verify the effective mode. |
 | **A-17** | Can `partial-tool-call` arrive before `tool-call-started` or after completion?      | Yes. Known but uncorrelated/late partial snapshots are dropped with one compatibility warning rather than failing the stream; unknown semantic event types still fail closed.                                      | Capture real partial/start/completion ordering for built-in, MCP, and custom tools.              |
+
+## SDK 1.4.0 live validation (2026-11-15)
+
+Both the v7 (`1.0.4`) and v6 (`0.1.4`) worktrees passed all seven live integration tests on
+Node 24 with SDK `1.4.0` and `CURSOR_REASONING_MODEL=composer-2.5`; the v6 worktree passed them
+with both zod `4.2.1` and zod `3.25.76` installed. Two findings came from the first v7 run, before
+the fixes:
+
+- A live stream emits the new `model-call-completed` update immediately before `turn-ended`, with
+  identical usage on a single-call turn. It is now raw-only.
+- The usage test failed: `RunResult.usage.totalTokens` equalled `inputTokens + outputTokens`, and
+  `inputTokens` was larger than `cacheReadTokens + cacheWriteTokens`. This matches the SDK's 1.1.0
+  accounting change (A-5), so the usage mapping no longer adds cache tokens to the input total.
+
+`teamId` was not exercised live; the available login has no second team to select. The usage
+test's duration varied from 25 to 60 seconds across runs and exceeded its 120-second timeout once.
 
 ## SDK 1.0.31 live validation (2026-09-07)
 

@@ -24,6 +24,7 @@ const settingsCoverage = {
   agent: fakeAgent,
   createNewAgentPerCall: true,
   agentName: 'test agent',
+  teamId: 42,
   mode: 'plan',
   systemPrompt: 'You are a coding assistant with access to tools.',
   tools: ['shell', 'read'],
@@ -151,6 +152,45 @@ describe('cursorSettingsSchema', () => {
     // @ts-expect-error subagentInherit is reachable only through sdkAgentOptions.local.
     const local: CursorLocalSettings = { subagentInherit: {} };
     expect(cursorSettingsSchema.safeParse({ local }).success).toBe(false);
+  });
+
+  it('keeps the SDK 1.4.0 executor, file-system, and bridge options out of local settings', () => {
+    const excluded = [
+      // @ts-expect-error resourceProviderOptions is reachable only through sdkAgentOptions.local.
+      { resourceProviderOptions: {} },
+      // @ts-expect-error reportedWorkspacePath is reachable only through sdkAgentOptions.local.
+      { reportedWorkspacePath: '/' },
+      // @ts-expect-error fs is reachable only through sdkAgentOptions.local.
+      { fs: () => ({}) },
+      // @ts-expect-error hostMcpBridgeUrls is reachable only through sdkAgentOptions.local.
+      { hostMcpBridgeUrls: ['http://127.0.0.1:1'] },
+    ] satisfies CursorLocalSettings[];
+    for (const local of excluded) {
+      expect(cursorSettingsSchema.safeParse({ local }).success).toBe(false);
+    }
+  });
+
+  it('accepts the SDK ModelSelection shape, including maxMode, for a subagent model', () => {
+    const agents: CursorSettings['agents'] = {
+      reviewer: {
+        description: 'review',
+        prompt: 'Review',
+        model: { id: 'composer-2.5', params: [{ id: 'fast', value: 'true' }], maxMode: true },
+      },
+    };
+    expect(cursorSettingsSchema.safeParse({ agents }).success).toBe(true);
+    expect(
+      cursorSettingsSchema.safeParse({
+        agents: { reviewer: { ...agents.reviewer, model: { id: 'composer-2.5', maxMode: 'yes' } } },
+      }).success
+    ).toBe(false);
+  });
+
+  it('accepts only positive safe-integer team IDs', () => {
+    expect(cursorSettingsSchema.safeParse({ teamId: 1 }).success).toBe(true);
+    for (const teamId of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, Number.NaN, '42']) {
+      expect(cursorSettingsSchema.safeParse({ teamId }).success).toBe(false);
+    }
   });
 });
 

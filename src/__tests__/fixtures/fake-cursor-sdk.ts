@@ -189,6 +189,10 @@ export class FakeSDKAgent implements SDKAgent {
     return Promise.resolve();
   }
 
+  summarize(): Promise<Run> {
+    return Promise.reject(new Error('FakeSDKAgent does not implement summarize.'));
+  }
+
   [Symbol.asyncDispose](): Promise<void> {
     this.close();
     return Promise.resolve();

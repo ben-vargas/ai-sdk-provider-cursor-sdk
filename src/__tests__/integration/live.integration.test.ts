@@ -88,11 +88,14 @@ describe.skipIf(!integrationEnabled || !apiKey)('cursor-sdk live', () => {
       });
       const raw = result.usage.raw;
       if (raw) {
-        expect(raw.totalTokens).toBe(
-          Number(raw.inputTokens) +
-            Number(raw.outputTokens) +
-            Number(raw.cacheReadTokens) +
-            Number(raw.cacheWriteTokens)
+        // @cursor/sdk 1.1.0+: inputTokens is the whole prompt, cache reads and writes included.
+        expect(raw.totalTokens).toBe(Number(raw.inputTokens) + Number(raw.outputTokens));
+        expect(Number(raw.inputTokens)).toBeGreaterThanOrEqual(
+          Number(raw.cacheReadTokens) + Number(raw.cacheWriteTokens)
+        );
+        expect(result.usage.inputTokens.total).toBe(raw.inputTokens);
+        expect(result.usage.inputTokens.noCache).toBe(
+          Number(raw.inputTokens) - Number(raw.cacheReadTokens) - Number(raw.cacheWriteTokens)
         );
       }
     } finally {
