@@ -46,13 +46,21 @@ describe('CursorAgentManager acquisition and ownership', () => {
     mockAgentCreate.mockResolvedValue(agent);
     const manager = new CursorAgentManager(noopLogger);
     const customTool = { execute: vi.fn(() => 'ok') };
+    const onConnectionStateChange = vi.fn();
+    const sandboxOptions = { enabled: true, binaryPath: '/opt/cursor/cursorsandbox' };
     const scope = await manager.acquire(
       acquireOptions({
         settings: {
           agentName: 'Provider agent',
           teamId: 42,
           mode: 'plan',
-          local: { cwd: '/repo', dirs: ['/extra'], autoReview: true },
+          local: {
+            cwd: '/repo',
+            dirs: ['/extra'],
+            autoReview: true,
+            sandboxOptions,
+            onConnectionStateChange,
+          },
           customTools: { custom: customTool },
           tools: ['shell', 'read'],
           disallowedTools: ['delete'],
@@ -78,6 +86,8 @@ describe('CursorAgentManager acquisition and ownership', () => {
         cwd: '/repo',
         dirs: ['/extra'],
         autoReview: true,
+        sandboxOptions,
+        onConnectionStateChange,
         customTools: { custom: customTool },
       },
       tools: ['shell', 'read'],
@@ -323,6 +333,28 @@ describe('CursorAgentManager acquisition and ownership', () => {
       expect(key({ [name]: value })).not.toBe(key({ [name]: other }));
       expect(key({ [name]: value })).not.toBe(key({}));
     }
+  });
+
+  it('separates resumed handles by MCP sign-in handler and connection listener identity', () => {
+    type ResumeLocal = NonNullable<CursorSettings['sdkAgentOptions']>['local'];
+    const key = (local: ResumeLocal) =>
+      resumeCacheKey('agent-shared', { sdkAgentOptions: { local } });
+    const onMcpAuthRequest = async () => undefined;
+    const onConnectionStateChange = () => undefined;
+
+    expect(key({ onMcpAuthRequest })).toBe(key({ onMcpAuthRequest }));
+    expect(key({ onMcpAuthRequest })).not.toBe(key({ onMcpAuthRequest: async () => undefined }));
+    expect(key({ onMcpAuthRequest })).not.toBe(key({}));
+
+    expect(key({ onConnectionStateChange })).toBe(key({ onConnectionStateChange }));
+    expect(key({ onConnectionStateChange })).not.toBe(
+      key({ onConnectionStateChange: () => undefined })
+    );
+    expect(key({ onConnectionStateChange })).not.toBe(key({}));
+    // Creation-time `settings.local` is not sent on resume, so its listener must not split handles.
+    expect(resumeCacheKey('agent-shared', { local: { onConnectionStateChange } })).toBe(
+      resumeCacheKey('agent-shared', {})
+    );
   });
 
   it('resumes a separate handle when host MCP bridge URLs change or are removed', async () => {

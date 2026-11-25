@@ -1,6 +1,7 @@
 import type { InteractionUpdate, ToolCallDeltaUpdate } from '@cursor/sdk';
 import {
   ModelCallCompletedUpdateSchema,
+  ShellToolCallDeltaUpdateSchema,
   ToolCallCompletedUpdateSchema,
   ToolCallDeltaUpdateSchema,
   ToolCallStartedUpdateSchema,
@@ -284,6 +285,51 @@ describe('normalizeCursorUpdate', () => {
     };
     expect(ModelCallCompletedUpdateSchema.safeParse(update).error).toBeUndefined();
     // Without an explicit classification this name matches the fail-closed heuristic and throws.
+    expect(normalizeCursorUpdate(normalizer, update)).toEqual([
+      { kind: 'raw', value: update, conditional: true },
+    ]);
+    expect(
+      normalizeCursorUpdate(normalizer, { type: 'text-delta', text: ' on' }).filter(
+        (event) => event.kind !== 'raw'
+      )
+    ).toEqual([{ kind: 'text-delta', id: 'txt-1', delta: ' on' }]);
+  });
+
+  it('keeps shell-tool-call-delta raw-only, with or without preliminary tool results', () => {
+    const ids = { callId: 'call-shell', modelCallId: 'model-call-shell' };
+    const update = {
+      type: 'shell-tool-call-delta' as const,
+      ...ids,
+      stream: 'stderr' as const,
+      content: 'warning\n',
+    };
+    expect(ShellToolCallDeltaUpdateSchema.safeParse(update).error).toBeUndefined();
+    const toolCall = { type: 'shell', args: { command: 'make' } };
+    const result = {
+      status: 'success',
+      value: { exitCode: 0, signal: '', stdout: '', stderr: 'warning\n', executionTime: 2 },
+    };
+    for (const preliminary of [false, true]) {
+      const normalizer = new CursorEventNormalizer(preliminary);
+      normalizeCursorUpdate(normalizer, { type: 'tool-call-started', ...ids, toolCall });
+      // Without an explicit classification this name matches the fail-closed heuristic and throws.
+      expect(normalizeCursorUpdate(normalizer, update)).toEqual([
+        { kind: 'raw', value: update, conditional: true },
+      ]);
+      // The call still completes with its own result, not with the streamed chunk.
+      const completed = normalizeCursorUpdate(normalizer, {
+        type: 'tool-call-completed',
+        ...ids,
+        toolCall: { ...toolCall, result },
+      }).filter((event) => event.kind === 'tool-result');
+      expect(completed).toEqual([
+        expect.objectContaining({ toolCallId: 'call-shell', result, preliminary: false }),
+      ]);
+    }
+
+    // A chunk that arrives while text is streaming must not close the text block.
+    const normalizer = new CursorEventNormalizer(false);
+    normalizeCursorUpdate(normalizer, { type: 'text-delta', text: 'working' });
     expect(normalizeCursorUpdate(normalizer, update)).toEqual([
       { kind: 'raw', value: update, conditional: true },
     ]);

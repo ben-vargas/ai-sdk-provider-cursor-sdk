@@ -230,7 +230,7 @@ describe('CursorLanguageModel streaming and generation', () => {
       callOptions({ includeRawChunks: true })
     );
     const visibleParts = await collect(visible.stream);
-    expect(visibleParts.filter((part) => part.type === 'raw')).toHaveLength(9);
+    expect(visibleParts.filter((part) => part.type === 'raw')).toHaveLength(10);
 
     // Raw-only updates must not disturb completion, e.g. by checking tool-requests-listed's
     // callCount against a fixture that has no tool lifecycle.

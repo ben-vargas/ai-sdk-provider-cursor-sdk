@@ -17,6 +17,15 @@
         }
       }
     },
+    {
+      "update": {
+        "type": "shell-tool-call-delta",
+        "callId": "call-shell",
+        "modelCallId": "model-call-1",
+        "stream": "stdout",
+        "content": "hi\n"
+      }
+    },
     { "update": { "type": "summary-started" } },
     { "update": { "type": "summary", "summary": "short" } },
     { "update": { "type": "summary-completed" } },

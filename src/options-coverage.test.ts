@@ -32,14 +32,17 @@ type SendKnownExcludedKey = 'onStep' | 'mcpServers' | 'cloud';
 type SendAccountedKey = SendMappedKey | SendProviderManagedKey | SendKnownExcludedKey;
 
 type LocalSendMappedKey = 'force';
-// Per-send `resourceProviderOptions`, `reportedWorkspacePath`, and `fs` replace the agent-level
-// values for one send. The provider only maps `force` per call.
+// Per-send `resourceProviderOptions`, `reportedWorkspacePath`, `fs`, `onMcpAuthRequest`, and
+// `onConnectionStateChange` replace the agent-level values for one send. The provider only maps
+// `force` per call.
 type LocalSendKnownExcludedKey =
   | 'customTools'
   | 'subagentInherit'
   | 'resourceProviderOptions'
   | 'reportedWorkspacePath'
-  | 'fs';
+  | 'fs'
+  | 'onMcpAuthRequest'
+  | 'onConnectionStateChange';
 type CloudSendKnownExcludedKey = 'envVars';
 
 type LocalAgentMappedKey =
@@ -50,17 +53,22 @@ type LocalAgentMappedKey =
   | 'settingSources'
   | 'sandboxOptions'
   | 'customTools'
-  | 'enableAgentRetries';
+  | 'enableAgentRetries'
+  | 'onConnectionStateChange';
 // `subagentInherit`, `resourceProviderOptions`, and `fs` carry live executor or file-system objects
 // (or factories). `reportedWorkspacePath` only makes sense alongside them, and `hostMcpBridgeUrls`
-// is marked `@internal` by the SDK. None are modeled in the validated `local` settings; callers can
-// pass them through `sdkAgentOptions.local`.
+// and `onMcpAuthRequest` are marked `@internal` by the SDK. None are modeled in the validated
+// `local` settings; callers can pass them through `sdkAgentOptions.local`.
 type LocalAgentKnownExcludedKey =
   | 'subagentInherit'
   | 'resourceProviderOptions'
   | 'reportedWorkspacePath'
   | 'fs'
-  | 'hostMcpBridgeUrls';
+  | 'hostMcpBridgeUrls'
+  | 'onMcpAuthRequest';
+// `local.sandboxOptions` is validated key by key, so a new nested key is rejected by the strict
+// schema without changing `keyof LocalAgentOptions`; `binaryPath` arrived that way in 1.5.0.
+type SandboxMappedKey = 'enabled' | 'binaryPath';
 type CloudAgentMappedKey =
   | 'env'
   | 'repos'
@@ -90,7 +98,8 @@ type InteractionMappedType =
   | 'user-message-appended'
   | 'tool-requests-listed'
   | 'model-call-completed'
-  | 'tool-call-delta';
+  | 'tool-call-delta'
+  | 'shell-tool-call-delta';
 
 // `tool-call-delta.taskUpdate` carries its own narrower union, so it drifts independently of
 // `InteractionUpdate['type']`. Every entry below is recursed through the same normalizer switch.
@@ -127,6 +136,9 @@ type StaleLocalAgentKey = Exclude<
   LocalAgentMappedKey | LocalAgentKnownExcludedKey,
   keyof LocalAgentOptions
 >;
+type SandboxOptionsKey = keyof NonNullable<LocalAgentOptions['sandboxOptions']>;
+type UnaccountedSandboxKey = Exclude<SandboxOptionsKey, SandboxMappedKey>;
+type StaleSandboxKey = Exclude<SandboxMappedKey, SandboxOptionsKey>;
 type UnaccountedCloudAgentKey = Exclude<keyof CloudAgentOptions, CloudAgentMappedKey>;
 type StaleCloudAgentKey = Exclude<CloudAgentMappedKey, keyof CloudAgentOptions>;
 type UnaccountedInteractionType = Exclude<InteractionUpdate['type'], InteractionMappedType>;
@@ -145,6 +157,8 @@ const noUnaccountedCloudSendKeys: Record<UnaccountedCloudSendKey, never> = {};
 const noStaleCloudSendKeys: Record<StaleCloudSendKey, never> = {};
 const noUnaccountedLocalAgentKeys: Record<UnaccountedLocalAgentKey, never> = {};
 const noStaleLocalAgentKeys: Record<StaleLocalAgentKey, never> = {};
+const noUnaccountedSandboxKeys: Record<UnaccountedSandboxKey, never> = {};
+const noStaleSandboxKeys: Record<StaleSandboxKey, never> = {};
 const noUnaccountedCloudAgentKeys: Record<UnaccountedCloudAgentKey, never> = {};
 const noStaleCloudAgentKeys: Record<StaleCloudAgentKey, never> = {};
 const noUnaccountedInteractionTypes: Record<UnaccountedInteractionType, never> = {};
@@ -166,6 +180,8 @@ describe('Cursor SDK options and events drift guard', () => {
         noStaleCloudSendKeys,
         noUnaccountedLocalAgentKeys,
         noStaleLocalAgentKeys,
+        noUnaccountedSandboxKeys,
+        noStaleSandboxKeys,
         noUnaccountedCloudAgentKeys,
         noStaleCloudAgentKeys,
         noUnaccountedInteractionTypes,

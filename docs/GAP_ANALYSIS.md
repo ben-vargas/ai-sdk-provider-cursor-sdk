@@ -1,9 +1,10 @@
 # AI SDK v7/v6 gap analysis
 
 This document compares the union of AI SDK v7 (`LanguageModelV4` / `ProviderV4`) and AI SDK v6
-(`LanguageModelV3` / `ProviderV3`) with the public surface of `@cursor/sdk@1.4.0`, the version
-pinned on both maintained branches. It describes the AI SDK v7 behavior implemented on `main`; rows that differ for the
-`ai-sdk-v6` branch are marked.
+(`LanguageModelV3` / `ProviderV3`) with the public surface of `@cursor/sdk@1.5.0`, the version
+pinned on `main`. The `ai-sdk-v6` branch still pins `1.4.0`, so the
+[1.4.1 – 1.5.0 section](#cursor-sdk-141--150) does not apply there. It describes the AI SDK v7
+behavior implemented on `main`; rows that differ for the `ai-sdk-v6` branch are marked.
 
 This document defaults to the v7 `main` behavior. On the `ai-sdk-v6` branch, v7-only rows do not
 apply; where a row distinguishes versions, the v6 behavior is authoritative. Named Cursor SDK
@@ -157,7 +158,7 @@ path: usage still comes from `turn-ended` deltas and terminal `RunResult.usage`,
 the run being reported rather than to the agent's lifetime.
 
 `@cursor/sdk` declares `toTokenUsage` and `sumTokenUsage` in its internal `usage-types.d.ts`, but
-`@cursor/sdk@1.4.0` still does not export those functions from its public package entry point. The
+`@cursor/sdk@1.5.0` still does not export those functions from its public package entry point. The
 provider therefore performs the same documented field-wise fallback calculation locally rather than
 importing a non-exported subpath.
 
@@ -290,6 +291,93 @@ Other surface changes, none used by the provider:
   `FileNotFoundError`, …) are exported for building an `fs` tree.
 - The `anysphere-source` conditional export is removed from the SDK's package entry points; the
   provider imports the standard entry.
+
+## Cursor SDK 1.4.1 – 1.5.0
+
+Triage from the published type declarations and bundles of 1.4.1, 1.4.2, and 1.5.0. None of it has
+been run against the live Cursor API yet; see [ASSUMPTIONS.md](ASSUMPTIONS.md). 1.4.1 changes no
+public types.
+
+Options:
+
+- `local.onConnectionStateChange` (1.4.2): mapped in the validated `local` settings and passed at
+  local agent creation. Cursor calls it with `{ state: 'reconnecting', attempt, trigger? }` when a
+  local run commits to a non-immediate transport retry and with `{ state: 'connected' }` once the
+  retried attempt makes progress. The delta stream is quiet in between, so an application can pause
+  its own idle timeout. Cursor does not persist the listener, and like the rest of `settings.local`
+  it is not sent on `agentId` resume; pass it through `sdkAgentOptions.local` there. The resume
+  cache keys it by function identity. Its per-send replacement on `LocalSendOptions` is
+  known-excluded: the provider maps only `force` per call.
+- `local.onMcpAuthRequest` (1.4.2): known-excluded on both `LocalAgentOptions` and
+  `LocalSendOptions`. It answers the agent's MCP sign-in (`mcp_auth`) requests, which Cursor
+  rejects when it is unset. The SDK marks it `@internal` for Agent SDK hosts, says it may change
+  without notice, and does not export its request and decision types from the package entry point.
+  It still passes through `sdkAgentOptions.local` at creation or resume. Because the handler can
+  approve a sign-in, the resume cache keys it by function identity.
+- `local.sandboxOptions.binaryPath` (1.5.0): mapped. It is nested inside an already-mapped key, so
+  the drift guard did not see it, but the strict `local` validation would have rejected a value the
+  derived `CursorLocalSettings` type accepts. The guard now also accounts for the `sandboxOptions`
+  keys in both directions. `binaryPath` is an absolute path to a `cursorsandbox` helper
+  the host trusts. The provider checks only that it is a string; Cursor fails the run for a path
+  that is not an absolute executable and tries `CURSOR_SDK_SANDBOX_BINARY` when it is unset. The
+  first helper a local agent configures serves the whole process: a later agent that passes a
+  different path fails, and one that passes none reuses it.
+
+Events:
+
+- `shell-tool-call-delta` (`{ callId, modelCallId, stream: 'stdout' | 'stderr', content }`, 1.5.0),
+  top level only: raw-only. It streams a running shell tool call's output in chunks; earlier SDK
+  versions dropped these backend deltas. A successful call's `tool-call-completed` result still
+  carries the whole `stdout` and `stderr`, so tool parts do not need it. It is classified as mapped
+  in the interaction drift-guard union. Without this classification its name matches the
+  fail-closed unknown-event heuristic and aborts the stream.
+- It is deliberately not surfaced as a preliminary tool result under
+  `experimentalPreliminaryToolResults`, although it correlates exactly by `callId`. Each update is
+  an increment and a preliminary result replaces the one before it, and no live capture shows how
+  it interleaves with `partial-tool-call` and the call's completion. `shell-output-delta` keeps its
+  existing experimental mapping. The 1.5.0 local runtime builds that update only for a
+  shell-command conversation turn, not for the agent's shell tool, so the two are not expected on
+  the same call.
+- The `NestedTaskUpdate` event names are unchanged.
+- Top-level `step-started` / `step-completed` keep their shape but change meaning for local runs
+  (1.5.0): each pair now brackets one model step, a model call and the tool calls it made, and the
+  step completes at `model-call-completed`. The agent loop's own step updates are dropped. Both
+  stay raw-only.
+
+Usage:
+
+- From 1.4.2 `RunResult.usage` also counts the model calls that completed in a turn that did not
+  end, such as in a cancelled or failed run. No type changed. Terminal `RunResult.usage` already
+  wins in the provider, so those runs can now report usage. The local fallback, used only when the
+  terminal result has no usage, still sums `turn-ended` updates.
+
+Inherited runtime behavior, with no provider change:
+
+- When a team MCP allowlist applies to a local agent's MCP server, or blocks it, the SDK prints a
+  `[cursor-sdk] …` notice with `console.warn` (1.4.1), regardless of the provider's `logger`
+  setting: once per server and allowlist in the process when an allowlist applies, and once per
+  server in each run that a server is blocked from.
+- Creating a local agent no longer fails on a rate-limited model catalog and stops waiting for a
+  slow one after 10 seconds (1.5.0). The agent is created with the requested model unchecked and
+  the first send checks it, so a model the catalog rejects can then fail the send instead of the
+  creation.
+- When Cursor enables goal continuation for the account (1.5.0, server-gated), a local run whose
+  turn ends with an active goal keeps going instead of finishing, so one run can span more turns.
+  The provider already closes open content at each `turn-ended` and takes usage from the terminal
+  result.
+
+Other surface changes, none used by the provider:
+
+- `CursorSdkError.retryAfterMs` (1.5.0) carries a Cursor API `Retry-After` header. The provider
+  does not copy it into `APICallError.data` or response headers; it stays readable on the mapped
+  error's `cause`.
+- `Agent.disposeLocalStores()` (1.5.0) closes every local store the process opened. It is
+  process-wide, so the provider's `close()` does not call it.
+- `LocalAgentStore` gains optional `persistRunEvents` and `retainAgent` members, and
+  `AgentCheckpointStore` an optional `retainAgent` (1.5.0). `LocalAgentStoreCheckpoints.get` is
+  now documented as read on demand during a run, so it must return the bytes of every completed
+  `create` or `update`. A custom `local.store` is passed through unchanged.
+- No runtime or peer dependency changed between 1.4.0 and 1.5.0.
 
 ## Related documents
 

@@ -131,16 +131,17 @@ those messages. This explicit option is separate from the lossy `prefix` fallbac
 
 Local runtime options:
 
-| Field                | Type                                                               | Notes                                                                                                                                                                           |
-| -------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cwd`                | `string \| string[]`                                               | Primary workspace path. A `string[]` is still accepted for back-compat with `@cursor/sdk` ≤ 1.0.23 and is migrated to `cwd: arr[0]` plus extra `dirs` before the SDK is called. |
-| `dirs`               | `string[]`                                                         | Additional workspace roots (`@cursor/sdk` 1.0.27+). Merged after a migrated `cwd` array's extra entries. `cwd` remains the primary working directory and local store scope.     |
-| `autoReview`         | `boolean`                                                          | Opt into Cursor's local classifier-backed Auto-review behavior.                                                                                                                 |
-| `store`              | `LocalAgentStore`                                                  | Custom persistence backend.                                                                                                                                                     |
-| `settingSources`     | `('project' \| 'user' \| 'team' \| 'mdm' \| 'plugins' \| 'all')[]` | Ambient Cursor settings layers.                                                                                                                                                 |
-| `sandboxOptions`     | `{ enabled: boolean }`                                             | Enable Cursor's local sandbox.                                                                                                                                                  |
-| `customTools`        | `Record<string, SDKCustomTool>`                                    | Local in-process tools registered through Cursor.                                                                                                                               |
-| `enableAgentRetries` | `boolean`                                                          | Cursor transport/stall retry policy.                                                                                                                                            |
+| Field                     | Type                                                               | Notes                                                                                                                                                                           |
+| ------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cwd`                     | `string \| string[]`                                               | Primary workspace path. A `string[]` is still accepted for back-compat with `@cursor/sdk` ≤ 1.0.23 and is migrated to `cwd: arr[0]` plus extra `dirs` before the SDK is called. |
+| `dirs`                    | `string[]`                                                         | Additional workspace roots (`@cursor/sdk` 1.0.27+). Merged after a migrated `cwd` array's extra entries. `cwd` remains the primary working directory and local store scope.     |
+| `autoReview`              | `boolean`                                                          | Opt into Cursor's local classifier-backed Auto-review behavior.                                                                                                                 |
+| `store`                   | `LocalAgentStore`                                                  | Custom persistence backend.                                                                                                                                                     |
+| `settingSources`          | `('project' \| 'user' \| 'team' \| 'mdm' \| 'plugins' \| 'all')[]` | Ambient Cursor settings layers.                                                                                                                                                 |
+| `sandboxOptions`          | `{ enabled: boolean; binaryPath?: string }`                        | Enable Cursor's local sandbox. `binaryPath` (`@cursor/sdk` 1.5.0+) names a trusted `cursorsandbox` helper; see below.                                                           |
+| `customTools`             | `Record<string, SDKCustomTool>`                                    | Local in-process tools registered through Cursor.                                                                                                                               |
+| `enableAgentRetries`      | `boolean`                                                          | Cursor transport/stall retry policy.                                                                                                                                            |
+| `onConnectionStateChange` | `(state: SDKConnectionState) => void`                              | Listener for local transport retries (`@cursor/sdk` 1.4.2+). Applied at creation; see below for resume.                                                                         |
 
 Cursor's `local.subagentInherit` (`@cursor/sdk` 1.0.35+) is not modeled here. It takes executor
 objects typed against unpublished SDK interfaces; pass it through `sdkAgentOptions.local` if you
@@ -156,6 +157,26 @@ keyed by the `fs` and `resourceProviderOptions` object identities and by the
 `reportedWorkspacePath` value. Their per-send replacements are not exposed. The SDK-internal
 `local.hostMcpBridgeUrls` is not modeled either; if you pass it through `sdkAgentOptions.local`,
 resumed handles are keyed by the URL list.
+
+Cursor calls `local.onConnectionStateChange` with `{ state: 'reconnecting', attempt, trigger? }`
+when a local run commits to a transport retry and with `{ state: 'connected' }` once the retried
+attempt makes progress, so an application can pause its own idle timeout in between. Cursor does
+not persist the listener, and `settings.local` is not sent on `agentId` resume: pass it through
+`sdkAgentOptions.local` there. Resumed handles are keyed by the listener's identity, so reuse one
+function to share a resumed handle.
+
+The SDK-internal `local.onMcpAuthRequest` (`@cursor/sdk` 1.4.2+), which answers the agent's MCP
+sign-in requests, is not modeled. Cursor rejects those requests when it is unset. If you pass it
+through `sdkAgentOptions.local`, resumed handles are keyed by the handler's identity.
+
+Define either callback once and reuse it across models that resume the same agent. A new function
+for each model instance resumes another handle, and the provider keeps every resumed handle open
+until `close()`.
+
+`sandboxOptions.binaryPath` must be an absolute path to an executable `cursorsandbox` helper;
+Cursor checks it, not this provider, and tries `CURSOR_SDK_SANDBOX_BINARY` when it is unset. The
+first helper a local agent configures serves the whole process: a later agent that passes a
+different path fails, and one that passes none reuses it.
 
 When both `local` and `cloud` are absent, the provider explicitly creates with `local: {}` rather
 than relying on undocumented omit-both behavior.

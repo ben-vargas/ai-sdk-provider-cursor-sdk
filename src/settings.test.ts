@@ -170,6 +170,37 @@ describe('cursorSettingsSchema', () => {
     }
   });
 
+  it('keeps the SDK-internal onMcpAuthRequest out of the typed and validated local settings', () => {
+    // @ts-expect-error onMcpAuthRequest is reachable only through sdkAgentOptions.local.
+    const local: CursorLocalSettings = { onMcpAuthRequest: async () => undefined };
+    expect(cursorSettingsSchema.safeParse({ local }).success).toBe(false);
+  });
+
+  it('accepts a local connection-state listener and rejects a non-function', () => {
+    const local: CursorLocalSettings = { onConnectionStateChange: () => undefined };
+    expect(cursorSettingsSchema.parse({ local }).local).toEqual(local);
+    expect(
+      cursorSettingsSchema.safeParse({ local: { onConnectionStateChange: 'log' } }).success
+    ).toBe(false);
+  });
+
+  it('accepts a trusted sandbox helper path and still rejects unknown sandbox keys', () => {
+    const local: CursorLocalSettings = {
+      sandboxOptions: { enabled: true, binaryPath: '/opt/cursor/cursorsandbox' },
+    };
+    expect(cursorSettingsSchema.parse({ local }).local).toEqual(local);
+    // The helper path stays optional: the sandbox is usually enabled without one.
+    const enabledOnly: CursorLocalSettings = { sandboxOptions: { enabled: true } };
+    expect(cursorSettingsSchema.parse({ local: enabledOnly }).local).toEqual(enabledOnly);
+    for (const sandboxOptions of [
+      { enabled: true, binaryPath: 1 },
+      { enabled: true, helperPath: '/opt/cursor/cursorsandbox' },
+      { binaryPath: '/opt/cursor/cursorsandbox' },
+    ]) {
+      expect(cursorSettingsSchema.safeParse({ local: { sandboxOptions } }).success).toBe(false);
+    }
+  });
+
   it('accepts the SDK ModelSelection shape, including maxMode, for a subagent model', () => {
     const agents: CursorSettings['agents'] = {
       reviewer: {
