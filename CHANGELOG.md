@@ -7,31 +7,39 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-11-25
+
 ### Added
 
 - Support `local.onConnectionStateChange`, a listener Cursor calls when a local run starts
-  retrying its transport and when the retried attempt connects again. It is passed at agent
-  creation; on `agentId` resume, pass it through `sdkAgentOptions.local`.
-- Accept `local.sandboxOptions.binaryPath`, the path of a trusted `cursorsandbox` helper. The SDK
-  type allows it since `1.5.0`, and the strict settings validation would have rejected it.
+  retrying its transport and again when the retried attempt connects, so an application can pause
+  its own idle timeout in between. It is passed at agent creation; on `agentId` resume, pass it
+  through `sdkAgentOptions.local`.
+- Accept `local.sandboxOptions.binaryPath`, new in `@cursor/sdk` `1.5.0`: the path of a
+  `cursorsandbox` helper the host trusts.
 
 ### Changed
 
-- Pin `@cursor/sdk` from `1.4.0` to `1.5.0` (#24).
+- Pin `@cursor/sdk` from `1.4.0` to `1.5.0` (#24). The SDK's runtime and peer dependencies are
+  unchanged. This pin was triaged from the published SDK packages and the mocked test suite, with
+  no live run yet: the gap analysis lists the SDK behavior the provider inherits unchanged, and
+  the assumptions register lists what a live run still has to confirm.
 - Classify the new SDK-internal `local.onMcpAuthRequest` agent and send option, and the per-send
   replacement for `local.onConnectionStateChange`, as known-excluded in the SDK drift guard.
   `onMcpAuthRequest` is reachable through `sdkAgentOptions.local`; see the configuration
-  reference. `CursorLocalSettings` omits it, and resumed handles are also keyed by the
-  `onMcpAuthRequest` and `onConnectionStateChange` function identities.
-- The SDK drift guard now also accounts for the nested `local.sandboxOptions` keys, so a new one
-  fails the canary instead of the strict settings validation at run time.
+  reference. `CursorLocalSettings` omits it.
+- Resumed handles are also keyed by the identity of an `onMcpAuthRequest` or
+  `onConnectionStateChange` function passed through `sdkAgentOptions.local`. Reuse one function
+  across models that resume the same agent to share a handle.
+- The SDK drift guard now also checks the nested `local.sandboxOptions` keys, so a key Cursor adds
+  there fails the canary instead of the strict settings validation at run time.
 
 ### Fixed
 
 - Treat the new `shell-tool-call-delta` Cursor update as a raw-only event. Its name matches the
-  fail-closed unknown-event heuristic, so a `1.5.0` stream that emitted it would have failed with a
-  protocol-consistency error. A shell call that runs to completion still reports its output in its
-  completed result.
+  fail-closed unknown-event heuristic, so a `1.5.0` stream that emits it would otherwise fail with
+  a protocol-consistency error. A shell call that runs to completion still reports its output in
+  its completed result.
 
 ## [1.0.4] - 2026-11-15
 
