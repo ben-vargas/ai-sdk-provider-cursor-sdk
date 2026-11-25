@@ -83,6 +83,9 @@ function objectIdentity(value: object | undefined): number | null {
  * where the agent's own tools run and are live objects or factories, keyed the same way.
  * `teamId` is not persisted by the SDK, so a handle resumed for one team must not serve another.
  * `hostMcpBridgeUrls` selects which MCP URLs bypass the local admin MCP policy.
+ * `onMcpAuthRequest` answers the agent's MCP sign-in requests and `onConnectionStateChange` is the
+ * caller's retry listener. The SDK keeps both on the handle and does not persist them, so they are
+ * keyed by function identity: a handle resumed with one callback must not serve another.
  */
 export function resumeCacheKey(agentId: string, settings: CursorSettings): string {
   const effective = { ...settings, ...settings.sdkAgentOptions };
@@ -98,6 +101,8 @@ export function resumeCacheKey(agentId: string, settings: CursorSettings): strin
     fs: objectIdentity(local?.fs),
     reportedWorkspacePath: local?.reportedWorkspacePath ?? null,
     hostMcpBridgeUrls: local?.hostMcpBridgeUrls ? [...local.hostMcpBridgeUrls].sort() : null,
+    onMcpAuthRequest: objectIdentity(local?.onMcpAuthRequest),
+    onConnectionStateChange: objectIdentity(local?.onConnectionStateChange),
   });
 }
 

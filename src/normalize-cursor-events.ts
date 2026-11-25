@@ -185,11 +185,14 @@ export function normalizeCursorUpdate(
     // still surfaces through its own tool-call-started/-completed lifecycle.
     // `model-call-completed` reports one model call's tokens. `turn-ended` carries the turn total
     // that already includes it, so mapping both would double-count usage.
+    // `shell-tool-call-delta` streams a running shell tool call's stdout/stderr. A successful
+    // call's `tool-call-completed` result already carries both, so tool parts do not need it.
     case 'token-delta':
     case 'step-started':
     case 'step-completed':
     case 'tool-requests-listed':
     case 'model-call-completed':
+    case 'shell-tool-call-delta':
     case 'summary':
     case 'summary-started':
     case 'summary-completed':

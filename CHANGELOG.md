@@ -7,6 +7,32 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Support `local.onConnectionStateChange`, a listener Cursor calls when a local run starts
+  retrying its transport and when the retried attempt connects again. It is passed at agent
+  creation; on `agentId` resume, pass it through `sdkAgentOptions.local`.
+- Accept `local.sandboxOptions.binaryPath`, the path of a trusted `cursorsandbox` helper. The SDK
+  type allows it since `1.5.0`, and the strict settings validation would have rejected it.
+
+### Changed
+
+- Pin `@cursor/sdk` from `1.4.0` to `1.5.0` (#24).
+- Classify the new SDK-internal `local.onMcpAuthRequest` agent and send option, and the per-send
+  replacement for `local.onConnectionStateChange`, as known-excluded in the SDK drift guard.
+  `onMcpAuthRequest` is reachable through `sdkAgentOptions.local`; see the configuration
+  reference. `CursorLocalSettings` omits it, and resumed handles are also keyed by the
+  `onMcpAuthRequest` and `onConnectionStateChange` function identities.
+- The SDK drift guard now also accounts for the nested `local.sandboxOptions` keys, so a new one
+  fails the canary instead of the strict settings validation at run time.
+
+### Fixed
+
+- Treat the new `shell-tool-call-delta` Cursor update as a raw-only event. Its name matches the
+  fail-closed unknown-event heuristic, so a `1.5.0` stream that emitted it would have failed with a
+  protocol-consistency error. A shell call that runs to completion still reports its output in its
+  completed result.
+
 ## [1.0.4] - 2026-11-15
 
 ### Added

@@ -20,8 +20,9 @@ import type { CursorPromptHistoryMode, CursorSystemMessageMode } from './types.j
  * Provider-facing local options. `@cursor/sdk` 1.0.24+ types `cwd` as a single
  * string and adds `dirs` for extra workspace roots. Arrays remain accepted here
  * for back-compat and are migrated to `cwd` + `dirs` at the SDK call edge.
- * `subagentInherit`, `resourceProviderOptions`, `reportedWorkspacePath`, `fs`, and
- * `hostMcpBridgeUrls` are not modeled; pass them through `sdkAgentOptions.local`.
+ * `subagentInherit`, `resourceProviderOptions`, `reportedWorkspacePath`, `fs`,
+ * `hostMcpBridgeUrls`, and `onMcpAuthRequest` are not modeled; pass them through
+ * `sdkAgentOptions.local`.
  */
 export type CursorLocalSettings = Omit<
   LocalAgentOptions,
@@ -31,6 +32,7 @@ export type CursorLocalSettings = Omit<
   | 'reportedWorkspacePath'
   | 'fs'
   | 'hostMcpBridgeUrls'
+  | 'onMcpAuthRequest'
 > & {
   cwd?: string | string[];
 };
@@ -165,9 +167,17 @@ const localOptionsSchema = z
     settingSources: z
       .array(z.enum(['project', 'user', 'team', 'mdm', 'plugins', 'all']))
       .optional(),
-    sandboxOptions: z.object({ enabled: z.boolean() }).strict().optional(),
+    sandboxOptions: z
+      .object({ enabled: z.boolean(), binaryPath: z.string().optional() })
+      .strict()
+      .optional(),
     customTools: customToolsSchema.optional(),
     enableAgentRetries: z.boolean().optional(),
+    onConnectionStateChange: z
+      .custom<
+        NonNullable<LocalAgentOptions['onConnectionStateChange']>
+      >((value) => typeof value === 'function')
+      .optional(),
   })
   .strict();
 
