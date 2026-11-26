@@ -57,15 +57,24 @@ callbacks still require their own target-environment live smoke.
 | **A-16** | Should a resumed conversation preserve its current mode when no mode is configured? | Yes. The provider omits `SendOptions.mode` unless the call or model explicitly configures it, matching the SDK's documented omit-to-preserve behavior.                                                             | Resume a plan-mode agent with and without explicit `mode: 'plan'` and verify the effective mode. |
 | **A-17** | Can `partial-tool-call` arrive before `tool-call-started` or after completion?      | Yes. Known but uncorrelated/late partial snapshots are dropped with one compatibility warning rather than failing the stream; unknown semantic event types still fail closed.                                      | Capture real partial/start/completion ordering for built-in, MCP, and custom tools.              |
 
-## SDK 1.5.0 triage without a live run (2026-11-25)
+## SDK 1.5.0 live validation (2026-11-25)
 
-The `1.5.0` pin on `main` was triaged from the published type declarations and bundles of `1.4.1`,
-`1.4.2`, and `1.5.0`, with the mocked suite only. No live integration run has been made on `1.5.0`;
-the `1.4.0` results below are the latest live evidence. Still to confirm with a real key:
+The v7 (`1.0.5`) worktree passed all seven live integration tests on Node 24 with SDK `1.5.0` and
+`CURSOR_REASONING_MODEL=composer-2.5`, and every local example passed on `grok-4.7`. A live shell
+tool call confirmed two parts of the `1.5.0` triage:
 
-- That a run with shell tool calls emits `shell-tool-call-delta`, and how those updates interleave
-  with `partial-tool-call` and the call's completion. The update is raw-only until a capture
-  exists.
+- `shell-tool-call-delta` streams a running shell call's output as it runs. One call emitted five
+  `stdout` updates about a second apart, then one `stderr` update, each carrying the call's
+  `callId` and the keys `callId`, `modelCallId`, `stream`, `content`, and `type`. They arrived
+  after `tool-call-started` and `tool-requests-listed` and before `tool-call-completed`, with no
+  `partial-tool-call` in between. The provider passed them through as raw-only events with no
+  warnings and no preliminary tool result whether `experimentalPreliminaryToolResults` was on or
+  off, taking the tool result from `tool-call-completed`.
+- Each `step-started` / `step-completed` pair bracketed one model call and completed right after
+  its `model-call-completed`.
+
+Still to confirm with a real key:
+
 - That `local.onConnectionStateChange` fires around a real transport retry.
 - How a run reports turns and usage when Cursor's server-gated goal continuation is on.
 
