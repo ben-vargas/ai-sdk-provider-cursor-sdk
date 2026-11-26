@@ -294,9 +294,10 @@ Other surface changes, none used by the provider:
 
 ## Cursor SDK 1.4.1 – 1.5.0
 
-Triage from the published type declarations and bundles of 1.4.1, 1.4.2, and 1.5.0. None of it has
-been run against the live Cursor API yet; see [ASSUMPTIONS.md](ASSUMPTIONS.md). 1.4.1 changes no
-public types.
+Triage from the published type declarations and bundles of 1.4.1, 1.4.2, and 1.5.0. Live runs
+against 1.5.0 on 2026-11-25 verified the integration tests, the local examples, and
+`shell-tool-call-delta` streaming; see [ASSUMPTIONS.md](ASSUMPTIONS.md). 1.4.1 changes no public
+types.
 
 Options:
 
@@ -333,16 +334,17 @@ Events:
   fail-closed unknown-event heuristic and aborts the stream.
 - It is deliberately not surfaced as a preliminary tool result under
   `experimentalPreliminaryToolResults`, although it correlates exactly by `callId`. Each update is
-  an increment and a preliminary result replaces the one before it, and no live capture shows how
-  it interleaves with `partial-tool-call` and the call's completion. `shell-output-delta` keeps its
+  an increment and a preliminary result replaces the one before it. A live capture shows the
+  updates arriving between `tool-call-started` and `tool-call-completed`, with no
+  `partial-tool-call` in between. `shell-output-delta` keeps its
   existing experimental mapping. The 1.5.0 local runtime builds that update only for a
   shell-command conversation turn, not for the agent's shell tool, so the two are not expected on
   the same call.
 - The `NestedTaskUpdate` event names are unchanged.
 - Top-level `step-started` / `step-completed` keep their shape but change meaning for local runs
   (1.5.0): each pair now brackets one model step, a model call and the tool calls it made, and the
-  step completes at `model-call-completed`. The agent loop's own step updates are dropped. Both
-  stay raw-only.
+  step completes at `model-call-completed`, as a live run confirmed. The agent loop's own step
+  updates are dropped. Both stay raw-only.
 
 Usage:
 

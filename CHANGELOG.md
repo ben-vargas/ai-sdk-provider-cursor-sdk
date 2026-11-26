@@ -7,6 +7,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-11-25
+
+### Changed
+
+- Verified live against `@cursor/sdk` `1.5.0`: the live integration suite passed 7/7, every local
+  example passed, and a live shell tool call streamed `shell-tool-call-delta` updates between the
+  call's start and its completion, which the provider passes through as raw-only events. Each
+  `step-started` / `step-completed` pair bracketed one model call and completed right after
+  `model-call-completed`. No code or dependency changed.
+- Updated the assumptions register and the gap analysis with these live results.
+
 ## [1.0.5] - 2026-11-25
 
 ### Added
@@ -21,9 +32,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - Pin `@cursor/sdk` from `1.4.0` to `1.5.0` (#24). The SDK's runtime and peer dependencies are
-  unchanged. This pin was triaged from the published SDK packages and the mocked test suite, with
-  no live run yet: the gap analysis lists the SDK behavior the provider inherits unchanged, and
-  the assumptions register lists what a live run still has to confirm.
+  unchanged.
 - Classify the new SDK-internal `local.onMcpAuthRequest` agent and send option, and the per-send
   replacement for `local.onConnectionStateChange`, as known-excluded in the SDK drift guard.
   `onMcpAuthRequest` is reachable through `sdkAgentOptions.local`; see the configuration
